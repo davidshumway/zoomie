@@ -749,7 +749,7 @@ function addToRooms() {
 	if (ab.length < pairs.length) {
 		// Need to have more breakout rooms!
 		// Alert the zoomie user.
-		alert('Please create more breakout rooms. There are not enouugh rooms for every pair of participants.');
+		alert('Please create more breakout rooms. There are not enough rooms for every pair of participants.');
 		return; 
 	}
 	
