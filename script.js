@@ -3,22 +3,19 @@
  * License: GPLv3
  * Contact: dshumw2@uic.edu
  * 
- * Matching algorithm:
- * For each user, search the list for a new partner.
- * If no new partner exists, then choose the oldest previous partner.
- * 
  * Round-robin scheduling.
- * https://stackoverflow.com/questions/6648512/scheduling-algorithm-for-a-round-robin-tournament
+ * https://stackoverflow.com/questions/6648512/
+ * 		scheduling-algorithm-for-a-round-robin-tournament
  * 
  * Notes:
- *  - For debug purposes, you can turn on breakout rooms on a "basic"
- *    account by enabling
- *    `MeetingConfig.meetingOptions.isEnableBreakoutRoom = true'
- *    in the browser.
- *  - Test room: 
- * 		https://zoom.us/wc/<id>/join
- * 		Passwordless
- * 		https://zoom.us/wc/<id>/join?pwd=<password from zoom.us>
+ *  - For debuggin purposes, you can mimic breakout rooms functionarlity
+ * 		on "basic" account by enabling
+ *      `MeetingConfig.meetingOptions.isEnableBreakoutRoom = true'
+ * 		in the browser.
+ * 
+ * TODO: If browser window reloads, then list of pairings will be
+ * 		forgotten. Can solve by keeping pairings in the browser or
+ * 		extension cache.
  */
  
 /**
@@ -53,9 +50,6 @@ var au = [], // Assignable users
 	breakoutWindowOpen = false, // Tracks breakout dialog state (open/closed)
 	breakoutRoomsShowing = false // Track state
 	; 
-
-// TODO: If browser window reloads, then list of pairings will be
-//		 forgotten. Can solve by keeping pairings in the browser or extension cache.
 
 /**
  * Initialize the program.
@@ -134,29 +128,7 @@ function load() {
  * Wait for "Breakout Rooms" button to appear, then attach an event to it.
  */
 function getBreakoutButton() {
-	//~ var x = document.getElementsByClassName(
-		//~ 'footer-button__button ax-outline'
-	//~ );
-	//~ for (var i=0; i<x.length; i++) {
-		//~ if (x[i].innerText.indexOf('Breakout Rooms') != -1) {
-			//~ // Assign breakout script
-			//~ x[i].onclick = function() {
-				//~ var x = document.getElementById('boRoomMgmtWindow');
-				//~ if (!x) {
-					//~ // Only run if the breakout rooms window is not 
-					//~ // showing. It will be showing imminently.
-					//~ //setTimeout(attachBreakoutContainer, 200);
-				//~ }
-			//~ }
-			//~ //x[i].style.border = '4px solid red';
-			//~ return x[i];
-		//~ }
-	//~ }
-	//~ //~~~~~~~~~alert('(Zoomie) Could not find "Breakout Rooms" button');
-	//~ // If still here, then maybe try again in 500ms.
-	//~ // Maybe page is loading slow?
-	//~ setTimeout(getBreakoutButton, 100);	
-	//~ return false;
+	//
 }
 
 // Set an interval to watch for boRoomMgmtWindow element to appear.
@@ -368,23 +340,9 @@ function attachBreakoutContainer() {
 					  'zmu-btn__outline--blue';
 		elements.autoButton = z;
 		
-		//~ // An "auto"-pair button that can be clicked any number
-		//~ // of times, continuously randomly permutating the 
-		//~ // people into breakout rooms of size=2.
-		//~ var z = document.createElement('button');
-		//~ y[0].insertBefore(z, y[0].firstChild);
-		//~ z.innerHTML = 'Zoomie<br>View Pairings';
-		//~ z.onclick = showViewPairings;
-		//~ z.className = 'zmu-btn zm-btn-legacy zmu-btn--default ' +
-					  //~ 'zmu-btn__outline--blue';
-		//~ elements.viewPairsButton = z;
-		
 		// Box container style
 		document.getElementById('boRoomMgmtWindow')
 			.style.width = '1000px'; // Default=480
-		
-		
-		
 	}
 }
  
@@ -452,34 +410,7 @@ function updatePairingsFinal() {
 	setTimeout(attachCloseAllRooms, 100);
 	
 }
-//~ /**
- //~ * User accepted pairings and opened rooms, so finalize pairs list.
- //~ */
-//~ function updatePairingsFinal() {
-	//~ ////////////////////////////////////////////////////////////////////
-	//~ // Set the temporary pairs dictionary.
-	//~ // Temp pairs dictionary is utilized each time user
-	//~ // selects to generate a pairing during this particular
-	//~ // "pairing session".
-	//~ // Thus, anytime the user generates a pairing,
-	//~ // the pairing will be saved. Unless the user selects
-	//~ // to pair again, in which case the last pairing is
-	//~ // ignored.
-	//~ // Makes a "deep copy" of the pairings object.
-	//~ ////////////////////////////////////////////////////////////////////
-	//~ tmpPairings = JSON.parse(JSON.stringify(pairings));
-	//~ tmpNumPairings = numPairings;
-	
-	//~ // Write to local storage.
-	//~ localStorage['zoomie-history'] = JSON.stringify(pairings);
-	
-	//~ // Remove the -Auto- button.
-	//~ elements.autoButton.parentNode.removeChild(elements.autoButton);
-	//~ elements.viewPairsButton.parentNode.removeChild(elements.viewPairsButton);
-	
-	//~ // Attach to close all rooms button.
-	//~ setTimeout(attachCloseAllRooms, 100);
-//~ }
+
 /**
  * Add back the -Auto- button.
  */
@@ -555,10 +486,7 @@ function addUserSelect() {
 			showIgnoreUsersSelect();
 		}
 		z.appendChild(y1);
-		//~ z.innerText = au[i].name;
-		//~ z.insertBefore(y1, z.firstChild);
 		
-		//~ z.insertBefore(y2, z.firstChild);
 		// checked1
 		if (au[i].name == primaryCohost) {
 			y1.checked = true;
@@ -644,9 +572,7 @@ function makeRoundRobinPairings(players) {
   for (var i in p) {
 	  if (!ignoredUsers[p[i].name]) {
 		  newp.push(p[i].name);
-	  }// else if (primaryCohost && primaryCost == p[i]) {
-		//  cohost = primaryCohost;
-	  //}
+	  }
   }
   
   if (newp.length % 2 == 1) {
@@ -686,7 +612,6 @@ function makeRoundRobinPairings(players) {
     playerIndexes.push(playerIndexes.shift());
     tournamentPairings.push(roundPairings);
   }
-  //~ console.log(tournamentPairings);
 
   return tournamentPairings;
 }
@@ -709,17 +634,6 @@ function cancelIgnoreUsersSelect() {
  */
 function hideIgnoreUsersSelect() {
 	detachSettings();
-	//~ elements.userIgnoreSelectTitle.className = 'zoomie-ignoreUsersTitle';
-	//~ elements.ignoreContainer.className = 'zoomie-ignoreContainer zoomie-show';
-	
-	//~ elements.ignoreContainer.style.display = 'none';
-	//~ elements.userIgnoreSelect.style.display = 'none';
-	//~ elements.userIgnoreSelectAccept.style.display = 'none';
-	//~ elements.autoCloseDiv.style.display = 'none';
-	//~ elements.userIgnoreSelectList.style.display = 'none';
-	//~ elements.okayButtonDiv.style.display = 'none';
-	//~ elements.roundSelectDiv.style.display = 'none';
-	//~ elements.userIgnoreSelectCancel.style.display = 'none';
 	
 	// Show the default dialogs
 	try {
@@ -845,34 +759,6 @@ function showIgnoreUsersSelect() {
 }
 
 /**
- * When user clicks "-Auto-" button, run the pairing algorithm.
- */
-//~ function zoomie() {
-	//~ // Close any popup dialog boxes that are opened when user clicks
-	//~ // any of the "Assign" buttons.
-	//~ closeAssignPopups();
-	//~ // Reset paired attributes on au.
-	//~ resetPairings();
-
-	//~ ab = getAllAssignButtons();
-	//~ if (!ab) { // silent fail after user alert
-		//~ return;
-	//~ }
-	//~ au = getAllAssignableUsers();
-	//~ if (!au) { // silent fail after user alert
-		//~ return;
-	//~ }
-	
-	//~ if (!generatedPairs) {
-		//~ // new
-		//~ console.log('au', au);
-		//~ console.log('mrr', makeRoundRobinPairings(au));
-	//~ }
-	//~ // Run pairing algo.
-	//~ //pairUsers();
-//~ }
-
-/**
  * Closes all Assign button popups before running auto-assign.
  */
 function closeAssignPopups() {
@@ -892,239 +778,6 @@ function closeAssignPopups() {
 		}
 	}
 }
-
-/**
- * Shuffles array in place.
- * @param {Array} a items An array containing the items.
- * -- Source: 
- * -- 	https://stackoverflow.com/questions/6274339/
- * -- 	how-can-i-shuffle-an-array
- */
-//~ function shuffle(a) {
-    //~ var j, x, i;
-    //~ for (i = a.length - 1; i > 0; i--) {
-        //~ j = Math.floor(Math.random() * (i + 1));
-        //~ x = a[i];
-        //~ a[i] = a[j];
-        //~ a[j] = x;
-    //~ }
-    //~ return a;
-//~ }
-
-/**
- * @param includeCohosts {Boolean} Whether to include cohosts in count.
- * @return count {Integer} The count of users present.
- */
-//~ function numUsers(includeCohosts) {
-	//~ if (includeCohosts) {
-		//~ return au.length;
-	//~ }
-	//~ var count = 0;
-	//~ for (var i in au) {
-		//~ if (!isCohost(au[i])) {
-			//~ count++;
-		//~ }
-	//~ }
-	//~ return count;
-//~ }
-
-/**
- * Each time "-Auto-" is pressed, a new set of pairings is generated.
- * 
- * If there is one co-host, then that co-host can be automatically
- * placed into a room when there are an odd number of users.
- * However, if multiple people are left out of auto-assigning
- * breakout rooms, then in the case of an odd number of users,
- * it is less certain how to proceed. Should the program select
- * one of the people left out at random (e.g., choose one of these
- * three people left out)? For now, if there are multiple people
- * left out (e.g. multiple people staying in the main room),
- * then the script should make an alert showing the last person
- * in the last breakout room by themselves, and then prompt
- * the user to select one of the people left out to pair
- * with the final person.
- */
-//~ function pairUsers() {
-	//~ var roomNo = 0; // Room counter
-	//~ // Reset pairings and numPairings.
-	//~ // Each time "Breakout Rooms" is pressed, the "-Auto-" button
-	//~ // can be pressed indefinitely and only the last 
-	//~ pairings = JSON.parse(JSON.stringify(tmpPairings));
-	//~ numPairings = tmpNumPairings;
-	
-	//~ // If odd number of users, then include co-host user.
-	//~ // Otherwise, ignore co-host user.
-	//~ // That is, if co-host user is in fact present.
-	//~ // If even users including co-host, then co-host must be used.
-	//~ // If odd users including co-host, then ignore co-host.
-	//~ var useCohost = false;
-	//~ var num = numUsers(false);
-	//~ if (num % 2 != 0) {
-		//~ useCohost = true;
-	//~ }
-	
-	//~ // Num people not making it into the room because there are not 
-	//~ // enough rooms.
-	//~ var missedUsers = 0;
-	
-	//~ // TODO: Generate all valid permutations. Then, choose the permuation
-	//~ // with the lowest amount of pairings that have occurred previously,
-	//~ // as well as lowest number of repeated pairings (e.g., John|Sally=10)
-	
-	//~ // Loop users
-	//~ for (var i=0; i<au.length; i++) {
-		//~ var found = false;
-		//~ var pair = null;
-		//~ var minPairing = {
-			//~ count: 999999999,   // Some big number never reached.
-			//~ pair: null,			// To fill.
-		//~ }
-		//~ if (au[i].paired) {
-			//~ // If user is paired by inner loop,
-			//~ // e.g., 2 is paired with 1 to start.
-			//~ continue;
-		//~ }
-		//~ if (verifyCohost(au[i], useCohost)) {
-			//~ continue;
-		//~ }
-		
-		//~ // Loop to find a partner for user[i].
-		//~ for (var j=0; j<au.length; j++) {
-			//~ if (au[i] == au[j]) {
-				//~ continue;
-			//~ }
-			//~ if (au[j].paired) {
-				//~ continue;
-			//~ }
-			//~ if (verifyCohost(au[j], useCohost)) {
-				//~ continue;
-			//~ }
-			
-			//~ // "John|Lisa" and "Lisa|John". Same thing.
-			//~ pair = pairings[au[i].name + '|' + au[j].name];
-			//~ if (!pair) {
-				//~ pair = pairings[au[j].name + '|' + au[i].name];
-			//~ }
-			
-			//~ // Create the first instance.
-			//~ if (!pair) {
-				//~ found = true;
-				//~ pairings[au[i].name +'|'+ au[j].name] = {
-					//~ roomNo: roomNo,
-					//~ user1: au[i].name,
-					//~ user2: au[j].name,
-					//~ useridx1: i,
-					//~ useridx2: j,
-					//~ roundsPaired: [numPairings], // Used for debug only.
-					//~ count: 1 					 // Used for debug only.
-				//~ };
-				//~ au[i].paired = true;
-				//~ au[j].paired = true;
-				//~ pair = pairings[au[i].name +'|'+ au[j].name];
-				//~ break;
-			//~ }
-			//~ else {
-				//~ // Paired at least once. Now update minPairing.
-				//~ // This is if we have to pair them again.
-				//~ // This type of counting takes O(N^2) because count of
-				//~ // every partner is checked.
-				//~ // But this should not matter considering the max number
-				//~ // of breakout rooms is 50 (x2 = 100 max users).
-				//~ if (pair.count < minPairing.count) {
-					//~ minPairing.count = pair.count;
-					//~ minPairing.pair = pair;
-				//~ }
-			//~ }
-		//~ }
-		//~ if (!found) {
-			//~ // Cases
-			//~ // 1) xxxxxxxxxxxx --User was paired to everyone at least once
-			//~ // 2) There are an odd number of users and one was left out
-			//~ // 3) There is only one user present
-			//~ //console.log('(Zoomie) Could not pair user:', au[i]);
-			
-			//~ // Use minPairing.
-			//~ // This is in the case that everyone was paired at least one
-			//~ // time.
-			//~ if (minPairing.pair != null) {
-				//~ pair = minPairing.pair;
-				//~ minPairing.pair.count++;
-				//~ minPairing.pair.roundsPaired.push(numPairings);
-				//~ // MARK USER AS PAIRED
-				//~ au[i].paired = true;
-				//~ au[minPairing.pair.useridx2].paired = true;
-			//~ }
-		//~ }
-		//~ if (pair != null) {
-			//~ // Click to assign.
-			//~ // In the case of a single user, pair will be null,
-			//~ // and this won't fire.
-			//~ console.log('(Zoomie) assigning to room:', roomNo);
-			//~ console.log('(Zoomie) pair:', pair);
-			//~ try {
-				//~ ab[roomNo].click();
-				//~ // Loops through checkboxes.
-				//~ var x = document.getElementsByClassName(
-					//~ 'zmu-data-selector-item'
-				//~ );
-				//~ for (var k=0; k<x.length; k++) {
-					//~ if (x[k].innerText == pair.user1
-					 //~ || x[k].innerText == pair.user2) {
-						//~ x[k].click();
-					//~ }
-				//~ }
-			//~ } catch (e) {
-				//~ // In this case, the error is likely that there
-				//~ // are not enough breakout rooms created.
-				//~ // So we need to alert the user that some participants
-				//~ // were not assigned to a room because there are not
-				//~ // enough rooms created.
-				//~ missedUsers += 2;
-			//~ }
-			//~ // Increment room counter
-			//~ roomNo++;
-		//~ }
-	//~ }
-	//~ console.log('(Zoomie) Pairings', pairings);
-	//~ // Increment pair count
-	//~ numPairings++;
-	//~ console.log('(Zoomie) # of rounds:', numPairings);
-	//~ if (missedUsers != 0) {
-		//~ alert(
-			//~ 'There are not enough breakout rooms! Could not add ' +
-			//~ missedUsers + ' participants. Add extra breakout rooms or '+
-			//~ 'select additional users to ignore.'
-		//~ );
-	//~ }
-//~ }
-
-/**
- * @param user {Object} User object to check.
- * @return {Boolean} Returns true if user is co-host, false otherwise.
- */
-//~ function isCohost(user) {
-	//~ return ignoredUsers[user.name];
-//~ }
-
-/**
- * Cohost behavior during pairing.
- * 
- * @param user {Object} User to check.
- * @param useCohost (Boolean) Whether there are an odd-numbered amount of users present.
- */
-//~ function verifyCohost(user, useCohost) {
-	//~ if (isCohost(user)) {
-		//~ if (!useCohost) {
-			//~ // Skip if cohost and cohosts not needed
-			//~ return true;
-		//~ }
-		//~ if (user.name != primaryCohost) {
-			//~ // Skip if using coshosts but this one is not primary
-			//~ return true;
-		//~ }
-	//~ }
-	//~ return false;
-//~ }
 
 function resetPairings() {
 	// Go through every room and remove any users in the room.
