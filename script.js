@@ -8,10 +8,10 @@
  * 		scheduling-algorithm-for-a-round-robin-tournament
  * 
  * Notes:
- *  - For debuggin purposes, you can mimic breakout rooms functionarlity
- * 		on "basic" account by enabling
+ *  - For debugging purposes, you can mimic breakout rooms functionality
+ * 		on a "basic" account by enabling
  *      `MeetingConfig.meetingOptions.isEnableBreakoutRoom = true'
- * 		in the browser.
+ * 		in the browser console.
  * 
  * TODO: If browser window reloads, then list of pairings will be
  * 		forgotten. Can solve by keeping pairings in the browser or
@@ -324,10 +324,23 @@ function attachBreakoutContainer() {
 		setTimeout(resetPairings, 400); // Remove any users from rooms.
 		setTimeout(resetPairings, 600); // Remove any users from rooms.
 		
-		attachOpenAllRooms(); // Add to "open all rooms" button
+		// Add listener to "Open All Rooms" button but only if it exists.
+		if (!attachOpenAllRooms()) {
+			setTimeout(attachBreakoutContainer, 100);
+			return;
+		}
 		
 		getBreakoutRoomHeight(); // Get height of window to work with.
 		
+		// Remove button if exists.
+		if (elements.autoButton) {
+			try {
+				elements.autoButton.parentNode.removeChild(elements.autoButton);
+				elements.autoButton = null;
+			} catch(e) {
+				console.log('Zoomie: Could not remove autoButton');
+			}
+		}
 		
 		// An "auto"-pair button that can be clicked any number
 		// of times, continuously randomly permutating the 
@@ -345,20 +358,29 @@ function attachBreakoutContainer() {
 			.style.width = '1000px'; // Default=480
 	}
 }
- 
+
 /**
  * Perform an action when Open All Rooms is clicked.
+ * 
+ * @return: Boolean True if listener was added to "Open All Rooms" button.
  */
 function attachOpenAllRooms() {
 	var x = document.getElementsByClassName(
 		'zmu-btn zm-btn-legacy bottom-btn zmu-btn--primary zmu-btn__outline--blue'
 	);
 	if (x[0]) {
-		x[0].addEventListener('click', updatePairingsFinal, false);
-	} else {
-		console.log('(ZOOMIE) Missing "Open all rooms" button!');
-		setTimeout(attachOpenAllRooms, 100);
-	}
+		// Update July 2020: Zoom added a second button with same class name.
+		for (var i=0; i<x.length; i++) {
+			if (x[i].innerText.trim() == 'Open All Rooms') {
+				x[i].addEventListener('click', updatePairingsFinal, false);
+				return true;
+			}
+		}
+	}// else {
+	//	console.log('(ZOOMIE) Missing "Open all rooms" button!');
+	//	setTimeout(attachOpenAllRooms, 1000);
+	//}
+	return false;
 }
 /**
  * Fire events when Open All Rooms is clicked.
@@ -368,12 +390,19 @@ function attachCloseAllRooms() {
 		'zmu-btn zmu-btn--danger zmu-btn__outline--blue'
 	);
 	if (x[0]) {
-		x[0].addEventListener('click', closeAllRooms, false);
-		// If there is an "auto-close" set, then use it now.
-		setTimeout(autoCloseRooms, parseInt(localStorage['zoomie-closeTime'])*1000);
+		// Update July 2020: Zoom added a second button with same class name.
+		for (var i=0; i<x.length; i++) {
+			if (x[i].innerText.trim() == 'Close All Rooms') {
+				x[i].addEventListener('click', closeAllRooms, false);
+				// If there is an "auto-close" set, then use it now.
+				setTimeout(autoCloseRooms,
+					parseInt(localStorage['zoomie-closeTime'])*1000);
+				break;
+			}
+		}
 	} else {
 		console.log('(ZOOMIE) Missing "Close all rooms" button!');
-		setTimeout(attachCloseAllRooms, 100);
+		setTimeout(attachCloseAllRooms, 1000);
 	}
 }
 /**
@@ -384,9 +413,13 @@ function autoCloseRooms() {
 		'zmu-btn zmu-btn--danger zmu-btn__outline--blue'
 	);
 	if (x[0]) {
-		x[0].click();
-		// Click calls this function. So better to directly call it here.
-		//closeAllRooms();
+		// Update July 2020: Zoom added a second button with same class name.
+		for (var i=0; i<x.length; i++) {
+			if (x[i].innerText.trim() == 'Close All Rooms') {
+				x[i].click();
+				break;
+			}
+		}
 	}
 }
 /**
