@@ -1,6 +1,8 @@
-# Zoomie Google Chrome browser extension.
+# Zoomie Google Chrome browser extension
 
-An overview video of the extension may be found here: (https://www.youtube.com/watch?v=vkE3dhM6Hs0).
+Update (October 2020): The extension is available now as a Firefox add-on, online here: (https://addons.mozilla.org/en-US/firefox/addon/zoomieroundrobin/).
+
+Video overview of the extension: (https://www.youtube.com/watch?v=vkE3dhM6Hs0).
 
 This extension has been submitted to the Google Chrome web store twice and twice rejected (May 2020 / June 2020). The reason for rejection was that the extension "appears to be suspicious". If you find this extension useful, please feel free to send your feedback to the Google web store asking them to accept the extension, where the extension ID is "daponhefhijhmoopoijhmocanmjkahhb". Feedback can be sent to: Chrome Web Store Developer Support <chromewebstore-dev-support@google.com>.
 
