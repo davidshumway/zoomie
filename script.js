@@ -2,34 +2,26 @@
  * Copyright David Shumway 2020
  * License: GPLv3
  * Contact: dshumw2@uic.edu
- * 
+ *
  * Round-robin scheduling.
  * https://stackoverflow.com/questions/6648512/
  * 		scheduling-algorithm-for-a-round-robin-tournament
- * 
+ *
  * Notes:
  *  - For debugging purposes, you can mimic breakout rooms functionality
  * 		on a "basic" account by enabling
  *      `MeetingConfig.meetingOptions.isEnableBreakoutRoom = true'
  * 		in the browser console.
- * 
+ *
  * TODO: If browser window reloads, then list of pairings will be
  * 		forgotten. Can solve by keeping pairings in the browser or
  * 		extension cache.
  */
- 
-/**
- * GM functions
- */
-function GM_addStyle(css) {
-	var style = document.createElement('style');
-	style.textContent = css;
-	document.getElementsByTagName('head')[0].appendChild(style);
-}
 
 /**
  * Global variables
  */
+var log = 'Zoomie extension::';
 var pairings = {},
 	tmpPairings = {}; // tmpPairings will be a copy of pairings
 var au = [], // Assignable users
@@ -37,7 +29,7 @@ var au = [], // Assignable users
 	userDict = {}, // Always updates to match au. {'name': {'name': <str>, 'index': <#>}}
 	numPairings = 0,
 	tmpNumPairings = 0,
-	ignoredUsers = {},// E.g., 1+ co-hosts not to place in rooms. 
+	ignoredUsers = {}, // E.g., 1+ co-hosts not to place in rooms.
 	primaryCohost = '',
 	elements = {
 		userIgnoreSelect: null,
@@ -46,7 +38,7 @@ var au = [], // Assignable users
 		autoButton: null,
 	},
 	breakoutRoomHeight = 0,
-	generatedPairs = false, // 
+	generatedPairs = false,
 	breakoutWindowOpen = false, // Tracks breakout dialog state (open/closed)
 	breakoutRoomsShowing = false // Track state
 	; 
@@ -55,39 +47,8 @@ var au = [], // Assignable users
  * Initialize the program.
  */
 function load() {
-	// Styles
-	GM_addStyle('.zoomie-ignoreContainer {'+
-				'width:100%;'+
-				'z-index:1002;'+
-				'position:absolute;'+
-				'display:none;'+
-				'}'
-				);
-	GM_addStyle('.zoomie-ignoreUsersTitle {'+
-				'width:100%;'+
-				'height:40px;'+
-				'background-color: aliceblue;'+
-				'padding:10px;'+
-				'z-index:1002;'+
-				//~ 'position:absolute;'+
-				'display:none;'+
-				'text-align:center;'+
-				'font-size:18px;'+
-				'font-weight:bold;}'
-				);
-	GM_addStyle('.zoomie-show {display: block !important;}');
-	GM_addStyle('.zoomie-hide {display: none !important;}');
-	GM_addStyle('.ignoreLegend {float: left; width: 26%; height: 50px; text-align: left; padding: 2px; text-decoration: underline;}');
-	GM_addStyle('.ignoreListOdd {background-color: #cfcfcf}');
-	GM_addStyle('.ignoreListEven {background-color: #efefef}');
-	GM_addStyle('.zoomieRadio1 {cursor: pointer; zoom: 1.2; width: 8%;}');
-	GM_addStyle('.zoomieRadio2 {cursor: pointer; zoom: 1.2; width: 8%; margin-right: 10px !important;}'); // try matching padding of legends
-	GM_addStyle('.zoomieSeconds {background-color: #efefef; border-bottom: 1px solid blue; cursor: pointer; width: 100%; height: 48px; padding: 6px;}'); // 60px + 10px + 10px = 80px
-	GM_addStyle('.zoomieSecondsInput {cursor: pointer; width: 60px; zoom: 1.2; border-radius: 8px; padding-left: 4px; text-align: center;}');
-	// Overwrites
-	GM_addStyle('.common-window {border: 0 !important; box-shadow: none !important; -webkit-box-shadow: none !important;}'); // Better visual display on -Auto- popup.
-	GM_addStyle('.ReactModal__Content {transform: none !important; top: 4% !important; left: 0 !important;}');
-	GM_addStyle('.ReactModal__Content--after-open {transform: none !important; top: 4% !important; left: 0 !important;}');
+	// Add css styles
+	add_styles()
 	
 	// Zoomie history pairings. Not required as of now.
 	if (!localStorage['zoomie-history']) {
@@ -121,29 +82,86 @@ function load() {
 	}
 	
 	// If less than 2 seconds, then zoom.us overwrites getBreakoutButton().
-	setTimeout(getBreakoutButton, 2000);
+	//setTimeout(getBreakoutButton, 2000);
 }
 
 /**
- * Wait for "Breakout Rooms" button to appear, then attach an event to it.
+ * Add CSS styles
  */
-function getBreakoutButton() {
-	//
+function add_styles() {
+	GM_addStyle(
+		'.zoomie-ignoreContainer {'+
+		'width:100%;'+
+		'z-index:1002;'+
+		'position:absolute;'+
+		'display:none;'+
+		'}'
+		);
+	GM_addStyle(
+		'.zoomie-ignoreUsersTitle {'+
+		'width:100%;'+
+		'height:40px;'+
+		'background-color: aliceblue;'+
+		'padding:10px;'+
+		'z-index:1002;'+
+		//~ 'position:absolute;'+
+		'display:none;'+
+		'text-align:center;'+
+		'font-size:18px;'+
+		'font-weight:bold;}'
+		);
+	GM_addStyle('.zoomie-show {display: block !important;}');
+	GM_addStyle('.zoomie-hide {display: none !important;}');
+	GM_addStyle('.ignoreLegend {float: left; width: 26%; height: 50px; text-align: left; padding: 2px; text-decoration: underline;}');
+	GM_addStyle('.ignoreListOdd {background-color: #cfcfcf}');
+	GM_addStyle('.ignoreListEven {background-color: #efefef}');
+	GM_addStyle('.zoomieRadio1 {cursor: pointer; zoom: 1.2; width: 8%;}');
+	// try matching padding of legends
+	GM_addStyle('.zoomieRadio2 {cursor: pointer; zoom: 1.2; width: 8%; margin-right: 10px !important;}');
+	// 60px + 10px + 10px = 80px
+	GM_addStyle('.zoomieSeconds {background-color: #efefef; border-bottom: 1px solid blue; cursor: pointer; width: 100%; height: 48px; padding: 6px;}');
+	GM_addStyle('.zoomieSecondsInput {cursor: pointer; width: 60px; zoom: 1.2; border-radius: 8px; padding-left: 4px; text-align: center;}');
+	
+	// Overwrites to zoom styles
+	
+	GM_addStyle('.common-window {border: 0 !important; box-shadow: none !important; -webkit-box-shadow: none !important;}'); 
+	
+	GM_addStyle('.ReactModal__Content {transform: none !important; top: 4% !important; left: 0 !important;}');
+	GM_addStyle('.ReactModal__Content--after-open {transform: none !important; top: 4% !important; left: 0 !important;}');
+	
+	GM_addStyle('#boRoomMgmtWindow {width: 98% !important; position: fixed !important; margin-left: 1%;}');
 }
+
+//~ /**
+ //~ * Wait for "Breakout Rooms" button to appear, then attach an event to it.
+ //~ */
+//~ function getBreakoutButton() {
+	//~ //
+//~ }
 
 // Set an interval to watch for boRoomMgmtWindow element to appear.
 // Once it appears, then add the Zoomie button.
 // Then, set another interval to check when the boRoomMgmtWindow
 // disappears.
 window.setInterval(function() {
+	
+	// Breakout window popup
 	var x = document.getElementById('boRoomMgmtWindow');
 	if (x && !breakoutWindowOpen) {
 		// Attach the Zoomie button.
+		console.log(log + 'Breakout window opened');
 		breakoutWindowOpen = true;
 		setTimeout(attachBreakoutContainer, 200);
 	} else if (!x && breakoutWindowOpen) {
 		// Reset the breakoutWindowOpen boolean.
 		breakoutWindowOpen = false;
+	}
+	
+	// "Recreate" button popup
+	var x = document.getElementsByClassName('recreate-paper__footer');
+	if (x && x.length == 1 && !x[0].zoomie_mark) {
+		x.zoomie_mark = 1;
+		x[0].onclick = attachBreakoutContainer;
 	}
 }, 100);
 
@@ -247,7 +265,7 @@ function attachSettings() {
 	elements.autoCloseLabel.appendChild(z);
 	z.onchange = function() {
 		localStorage['zoomie-closeTime'] = parseInt(this.value);
-		console.log('(Zoomie) updated close time');
+		console.log(log + 'Updated close time');
 	}
 	
 	//////////////////////////////////////////
@@ -291,7 +309,8 @@ function attachSettings() {
 	elements.okayButtonDiv = z;
 	
 	var z = document.createElement('button');
-	z.setAttribute('style', 'width:24%;height:40px;z-index:1002;display:none;background-color:wheat;border:2px solid cadetblue;');
+	z.setAttribute('style', 'z-index:1002;display:none;');
+	z.className = 'btn btn-primary';
 	z.innerText = 'Okay';
 	z.onclick = addToRooms;
 	elements.okayButtonDiv.appendChild(z);
@@ -301,7 +320,8 @@ function attachSettings() {
 	// Cancel button
 	//////////////////////////////////////////
 	var z = document.createElement('button');
-	z.setAttribute('style', 'width:24%;height:40px;z-index:1002;display:none;background-color:wheat;border:2px solid cadetblue; margin-left: 4px;');
+	z.setAttribute('style', 'z-index:1002;display:none;margin-left: 4px;');
+	z.className = 'btn btn-primary';
 	z.innerText = 'Cancel';
 	z.onclick = cancelIgnoreUsersSelect;
 	elements.okayButtonDiv.appendChild(z);
@@ -309,64 +329,74 @@ function attachSettings() {
 }
 
 /**
- * After user clicks "Breakout Rooms" button, adds an "-Auto-" button.
+ * After user clicks "Breakout Rooms" button, adds "Zoomie Settings".
  */
 function attachBreakoutContainer() {
+	
+	// Check footer exists
 	var y = document.getElementsByClassName(
-		'bo-mgmtwindow-content__footer'
+		//'bo-mgmtwindow-content__footer'
+		//'bo-room-not-started-footer__actions'
+		'bo-room-not-started-footer__btn-wrapper'
 	);
 	if (!y.length) {
 		setTimeout(attachBreakoutContainer, 100);
-	} else {
-		
-		resetPairings(); // Remove any users from rooms.
-		setTimeout(resetPairings, 200); // Remove any users from rooms.
-		setTimeout(resetPairings, 400); // Remove any users from rooms.
-		setTimeout(resetPairings, 600); // Remove any users from rooms.
-		
-		// Add listener to "Open All Rooms" button but only if it exists.
-		if (!attachOpenAllRooms()) {
-			setTimeout(attachBreakoutContainer, 100);
-			return;
-		}
-		
-		getBreakoutRoomHeight(); // Get height of window to work with.
-		
-		// Remove button if exists.
-		if (elements.autoButton) {
-			try {
-				elements.autoButton.parentNode.removeChild(elements.autoButton);
-				elements.autoButton = null;
-			} catch(e) {
-				console.log('Zoomie: Could not remove autoButton');
-			}
-		}
-		
-		// An "auto"-pair button that can be clicked any number
-		// of times, continuously randomly permutating the 
-		// people into breakout rooms of size=2.
-		var z = document.createElement('button');
-		y[0].insertBefore(z, y[0].firstChild);
-		z.innerHTML = 'Zoomie<br>Settings';
-		z.onclick = showIgnoreUsersSelect;
-		z.className = 'zmu-btn zm-btn-legacy zmu-btn--default ' +
-					  'zmu-btn__outline--blue';
-		elements.autoButton = z;
-		
-		// Box container style
-		document.getElementById('boRoomMgmtWindow')
-			.style.width = '1000px'; // Default=480
+		return;
 	}
+	
+	// Remove any users from rooms
+	resetPairings(); 
+	setTimeout(resetPairings, 200);
+	setTimeout(resetPairings, 400);
+	setTimeout(resetPairings, 600);
+	
+	// Add listener to "Open All Rooms" button but only if it exists.
+	if (!attachOpenAllRooms()) {
+		setTimeout(attachBreakoutContainer, 200);
+		return;
+	}
+	
+	// Gets height of window to work with.
+	getBreakoutRoomHeight();
+	
+	// Remove button if exists.
+	if (elements.autoButton) {
+		try {
+			elements.autoButton.parentNode.removeChild(elements.autoButton);
+			elements.autoButton = null;
+		} catch(e) {
+			console.log(log + 'Could not remove autoButton');
+		}
+	}
+	
+	// An "auto"-pair button that can be clicked any number
+	// of times, continuously randomly permutating the 
+	// people into breakout rooms of size=2.
+	var z = document.createElement('button');
+	y[0].insertBefore(z, y[0].firstChild);
+	z.innerHTML = 'Zoomie Settings';
+	z.onclick = showIgnoreUsersSelect;
+	z.className = 
+		'zmu-btn bo-bottom-btn zmu-btn--default zmu-btn__outline--blue';
+		// Changed Feb. 2021
+		//'zmu-btn zm-btn-legacy zmu-btn--default zmu-btn__outline--blue';
+	z.style.marginRight = '10px';
+	elements.autoButton = z;
+	
 }
 
 /**
  * Perform an action when Open All Rooms is clicked.
  * 
+ * Update (Feb. 2021): Button class updated.
+ * 
  * @return: Boolean True if listener was added to "Open All Rooms" button.
  */
 function attachOpenAllRooms() {
 	var x = document.getElementsByClassName(
-		'zmu-btn zm-btn-legacy bottom-btn zmu-btn--primary zmu-btn__outline--blue'
+		'zmu-btn bo-bottom-btn zmu-btn--primary zmu-btn__outline--blue'
+		// prior to Feb. 2021
+		// 'zmu-btn zm-btn-legacy bottom-btn zmu-btn--primary zmu-btn__outline--blue'
 	);
 	if (x[0]) {
 		// Update July 2020: Zoom added a second button with same class name.
@@ -401,7 +431,7 @@ function attachCloseAllRooms() {
 			}
 		}
 	} else {
-		console.log('(ZOOMIE) Missing "Close all rooms" button!');
+		console.log(log + 'Missing "Close all rooms" button!');
 		setTimeout(attachCloseAllRooms, 1000);
 	}
 }
@@ -745,12 +775,9 @@ function showIgnoreUsersSelect() {
 	
 	// Update makeUserDict
 	makeUserDict();
-	//~ console.log('userDict',userDict);
 	
 	// Generate pairs if new run.
 	generatedPairs = makeRoundRobinPairings(au);
-	//~ console.log('au', au);
-	//~ console.log('generatedPairs', generatedPairs);
 	
 	// If there are more pairs than current round #, then reset round #.
 	// This would happen when there's a new meeting and there are no
@@ -915,3 +942,11 @@ else {
 	}
 }
 
+/**
+ * GM functions
+ */
+function GM_addStyle(css) {
+	var style = document.createElement('style');
+	style.textContent = css;
+	document.getElementsByTagName('head')[0].appendChild(style);
+}

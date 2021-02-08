@@ -1,16 +1,26 @@
-# Zoomie Google Chrome browser extension
+# Zoomie browser extension for Mozilla Firefox and Google Chrome.
 
-Update (October 2020): The extension is available now as a Firefox add-on, online here: (https://addons.mozilla.org/en-US/firefox/addon/zoomieroundrobin/).
+This extension is now available as a Firefox add-on, which may be found online
+at the Firefox add-ons website located here:
+(https://addons.mozilla.org/en-US/firefox/addon/zoomieroundrobin/).
 
-Video overview of the extension: (https://www.youtube.com/watch?v=vkE3dhM6Hs0).
+Overview video of the extension:
+(https://www.youtube.com/watch?v=vkE3dhM6Hs0).
 
-This extension has been submitted to the Google Chrome web store twice and twice rejected (May 2020 / June 2020). The reason for rejection was that the extension "appears to be suspicious". If you find this extension useful, please feel free to send your feedback to the Google web store asking them to accept the extension, where the extension ID is "daponhefhijhmoopoijhmocanmjkahhb". Feedback can be sent to: Chrome Web Store Developer Support <chromewebstore-dev-support@google.com>.
+This extension has been submitted to the Google Chrome web store twice
+and twice rejected (May 2020 / June 2020). The reason for rejection was
+that the extension "appears to be suspicious". If you find this
+extension useful, please feel free to send your feedback to the Google
+web store providing your feedback regarding the extension. The extension
+ID on the Google Chrome web store is "daponhefhijhmoopoijhmocanmjkahhb".
+Feedback can be sent to: Chrome Web Store Developer Support
+<chromewebstore-dev-support@google.com>.
 
-# Extension overview
+# Overview
 
 Round-robin Zoom breakout room organizer for breaking into groups of twos over multiple rounds with unique pairings.
 
-This extension is only valid with "Paid" Zoom accounts, as the breakout room feature is only available to users with these accounts. Unpaid Zoom users do not have access to the breakout room feature in rooms they are hosting.
+This extension is only valid with "Paid" Zoom accounts as the breakout room feature is only available to users with these accounts. Unpaid Zoom users do not have access to the breakout room feature in rooms they are hosting.
 
 The extension is similar to Zoom's "Automatically" split participants into rooms, but it goes further by adding consistent pairings over multiple breakout sessions. Specifically, Zoom's automatic splitting up participants is randomly generated. The extension thus allows a host to have round-robin pairings over multiple rounds of breakout sessions while ensuring that participants have a one-on-one breakout session with every other user in the meeting. A number of feature requests have been made to Zoom regarding addition of this feature (round-robin tournament style pairings for breakout rooms), but for the time being the company has chosen not to include the feature.
 
@@ -22,7 +32,23 @@ The extension adds a "Zoomie" button to the breakout rooms dialogue box, which m
 
 The extension was created by David Shumway, a PhD student at University of Illinois at Chicago, for use by the Trillium Awakening Teachers Circle (https://www.trilliumawakening.org/). The extension is open-source and may be used by any group or individual.
 
-Future work: Suggestions welcome! Future work includes adding the option to select the number of users to include in each breakout room. At present, the number of users is set to two.
+# Testing / Development
 
-Version history: 0.1.1
+The extension can be tested in Firefox's "developer mode". Start by
+cloning this reposity. Then browse to `about:debugging` in Firefox,
+click on the "This Firefox" link, click "Load Temporary Add-on...",
+and finally select any file within the root directory of this repository.
+
+# Future work
+
+Suggestions welcome! Future work includes adding the option to select the number of users to include in each breakout room. At present, the number of users is set to two.
+
+# Version history
+
+0.1.2 - Feb. 2021
+  
+- Update CSS to match Zoom layout changes to the breakout window footer.
+- General Zoomie CSS layout updates.
+
+0.1.1 -
 
