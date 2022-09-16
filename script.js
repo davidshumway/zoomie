@@ -31,7 +31,8 @@ let assignableUsers = [], // Assignable users
 	assignButtons = [], // Assign buttons
 	userDict = {}, // Always updates to match assignableUsers. {'name': {'name': <str>, 'index': <#>}}
 	currentMatches = {},
-	previousMatches = new Map(),
+	previousMatches = {},
+	registeredMatches = new Map(),
 	asterisksUsers = new Map(),
 	matchesToAvoid = {}, // based on username, which can change... FUN
 	cohosts = {},
@@ -378,6 +379,7 @@ function attachSettings() {
 		if (this.value !== "") {
 		  // json decode
 		  // populate previous matches array
+			regenerateMatchesMap(this.value)
 		}
 	}
 
@@ -950,19 +952,21 @@ function duplicateOrAvoid(first, second) {
 		return {};
 	}
 
-	let one = previousMatches.has(first+second)
-	let two = previousMatches.has(second+first)
+	let one = registeredMatches.has(first+second)
+	let two = registeredMatches.has(second+first)
 	let duplicate = one && two
 
 
+	first = first.toLowerCase()
+	second = second.toLowerCase()
 	let avoid = false
 	for (let key in matchesToAvoid) {
 		if (first.includes(key)) {
-			if (second.includes(matchesToAvoid[key])) {
+			if (second.includes(matchesToAvoid[key].toLowerCase())) {
 				avoid = true
 			}
 		} else if (second.includes(key)) {
-			if (first.includes(matchesToAvoid[key])) {
+			if (first.includes(matchesToAvoid[key].toLowerCase())) {
 				avoid = true
 			}
 		}
@@ -1098,18 +1102,30 @@ function replaceWithAnyCohost(matches, username) {
 }
 
 function registerMatch(first, second) {
-	previousMatches.set(first+second, true)
-	previousMatches.set(second+first, true)
+	registeredMatches.set(first+second, true)
+	registeredMatches.set(second+first, true)
 }
 
 function unregisterMatch(first, second) {
-	previousMatches.delete(first+second)
-	previousMatches.delete(second+first)
+	registeredMatches.delete(first+second)
+	registeredMatches.delete(second+first)
 }
 
-function regenerateMatchesMap(blob) {
-	let matchObjects = JSON.parse(blob)
+function populateMatches(blob) {
 	// ... @TODO
+	previousMatches = JSON.parse(blob)
+	registeredMatches.clear()
+
+	for (let i = 0; i < previousMatches.length; i++) {
+		// to registeredMatches
+		registerMatch(i.Participants[0], i.Participants[1])
+	}
+}
+
+function populateMatchesToAvoid(blob) {
+	// ... @TODO
+	// format [][]string {[['rose', 'larry'], ['a', 'b']]}
+	matchesToAvoid = JSON.parse(blob)
 }
 
 function isCohost(username) {
