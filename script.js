@@ -108,31 +108,17 @@ function load() {
 	// If less than 2 seconds, then zoom.us overwrites getBreakoutButton().
 	//setTimeout(getBreakoutButton, 2000);
 }
+
 function updateStorage() {
+	// append current matches to previous matches
+	// previousMatches.stringify()
+	// put updates in localStorage
 
 }
 
 function loadStorage() {
-	const objectStore = storage.transaction(storageName).objectStore(storageName);
+	// load from localStorage
 
-
-    objectStore.openCursor().onsuccess = (event) => {
-		const cursor = event.target.result;
-		// Check if there are no (more) cursor items to iterate through
-		if (!cursor) {
-			// No more items to iterate through, we quit.
-			note.appendChild(createListItem('Entries all displayed.'));
-			return;
-		}
-	};
-
-}
-
-function updateStorage() {
-
-}
-
-function loadStorage() {
 	const objectStore = storage.transaction(storageName).objectStore(storageName);
 
 
@@ -291,10 +277,11 @@ function attachSettings() {
 	elements.userIgnoreSelect = z;
 	if (assignableUsers.length) {
 		z.innerHTML = // These are 50px tall. 12% + 26% + 60% = 98%
-			'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Ignore</div>'+
-			'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Co-host</div>'+
-			'<div class="ignoreLegend" style="width: 16% !important;overflow:hidden;">Participant</div>'+
-			'<div class="ignoreLegend" style="width: 66% !important;overflow:hidden;">Partners</div>'+
+	//		'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Ignore</div>'+
+	//		'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Co-host</div>'+
+			'<div class="ignoreLegend" style="width: 20% !important;overflow:hidden;">Participant</div>'+
+			'<div class="ignoreLegend" style="width: 20% !important;overflow:hidden;">Partners</div>'+
+			'<div class="ignoreLegend" style="width: 60% !important;overflow:hidden;">Settings</div>'+
 			'<br style="clear:both" />'; 
 	}
 		
@@ -303,6 +290,7 @@ function attachSettings() {
 	z.setAttribute('style', 'width:100%;height:400px;z-index:1004;display:none;background-color:#eee;overflow:auto;border-bottom:1px solid blue;');
 	elements.ignoreContainer.appendChild(z);
 	elements.userIgnoreSelectList = z;
+
 	
 	//////////////////////////////////////////
 	// Auto-close
@@ -336,13 +324,13 @@ function attachSettings() {
 	//////////////////////////////////////////
 	// Round number
 	//////////////////////////////////////////
+	/*
 	z = document.createElement('div');
 	z.className = 'zoomieSeconds';
 	z.setAttribute('style', 'display:none;');
 	elements.ignoreContainer.appendChild(z);
 	elements.roundSelectDiv = z;
-	
-	// 
+
 	z = document.createElement('label');
 	z.innerText = 'Current round:  ';
 	z.style.cursor = 'pointer';
@@ -365,7 +353,40 @@ function attachSettings() {
 		//~ console.logPrefix('(Zoomie) updated close time');
 	}
 
+	 */
+
 	// @TODO provide input for previous matches
+	/*
+	z = document.createElement('div');
+	a = document.createElement('label');
+	a.value = "matches to avoid (JSON)";
+	z = document.createElement('input');
+	z.type = 'text';
+	z.onchange = function() {
+		if (this.value !== "") {
+		  // json decode
+		  // populate matches to avoid array
+		}
+	}
+
+	z = document.createElement('div');
+	a = document.createElement('label');
+	a.value = "previous matches (JSON)";
+	z = document.createElement('input');
+	z.type = 'text';
+	z.onchange = function() {
+		if (this.value !== "") {
+		  // json decode
+		  // populate previous matches array
+		}
+	}
+
+	elements.ignoreContainer.appendChild(z);
+
+
+
+	 */
+
 	// @TODO provide display of all matches
 	// @TODO provide input for matches to avoid
 	
@@ -548,6 +569,7 @@ function closeAllRooms() {
  * Add checkboxes and radios to ignore or make users the odd-number user.
  */
 function addUserSelect() {
+	// replace with avoid matches input
 	
 	let div = elements.userIgnoreSelectList;
 	div.innerHTML = '';
@@ -562,6 +584,7 @@ function addUserSelect() {
 	for (let i in assignableUsers) {
 		// [{name: '---'}, ...]
 		let pnum = parseInt(i)+1; // Participant number. Start at 1, not 0.
+		/*
 		let z = document.createElement('div');
 		z.setAttribute('style', 'width:100%;');
 		z.className = 'ignoreList' + (i % 2 === 0 ? 'Odd' : 'Even');
@@ -629,42 +652,45 @@ function addUserSelect() {
 		y.setAttribute('style', 'width: 16%;overflow:hidden;display:inline-block;');//
 		y.innerText =  '('+(pnum<10 ? '0'+pnum : pnum)+') ' + assignableUsers[i].name;
 		z.appendChild(y);
+
+		 */
 		
 		///////////////////////////////////////////////////////////////
 		// If pairs have been generated, then show round pairings now.
 		///////////////////////////////////////////////////////////////
 		// 66% width (32% in use)
 		//let roundNum = parseInt(localStorage['zoomie-roundNumber']);
-			for (let j in currentMatches[r]) {
-				// pairings
-				var pairing = j.Participants;
-				var adduser = false;
-				if (pairing[0] === assignableUsers[i].name) {
-					// add p2
-					if (pairing[1] === null) {
-						adduser = '--';
-					} else {
-						adduser = parseInt(userDict[pairing[1]].index) + 1;
-					}
-				} else if (pairing[1] === assignableUsers[i].name) {
-					// add p1
-					if (pairing[0] === null) {
-						adduser = '--';
-					} else {
-						adduser = parseInt(userDict[pairing[0]].index) + 1;
-					}
+		for (let j in currentMatches) {
+			// pairings
+			var pairing = j.Participants;
+			var adduser = false;
+			if (pairing[0] === assignableUsers[i].name) {
+				// add p2
+				if (pairing[1] === null) {
+					adduser = '--';
+				} else {
+					adduser = parseInt(userDict[pairing[1]].index) + 1;
 				}
-				if (adduser) {
-					let y = document.createElement('span');
-					y.setAttribute('style', 'width: 2%;height:24px;border:1px solid blue;overflow:hidden;display:inline-block;text-align:center;');
-					y.innerText =  (adduser<10 ? '0'+adduser : adduser);
-					z.appendChild(y);
-					y.className = 'roundnums';// roundnums-'+(j+1);
-					y.roundNum = parseInt(r)+1;
+			} else if (pairing[1] === assignableUsers[i].name) {
+				// add p1
+				if (pairing[0] === null) {
+					adduser = '--';
+				} else {
+					adduser = parseInt(userDict[pairing[0]].index) + 1;
 				}
 			}
-		//highlightRoundNum(roundNum);
+			if (adduser) {
+				let y = document.createElement('span');
+				y.setAttribute('style', 'width: 2%;height:24px;border:1px solid blue;overflow:hidden;display:inline-block;text-align:center;');
+				y.innerText = (adduser < 10 ? '0' + adduser : adduser);
+				z.appendChild(y);
+				//y.className = 'roundnums';// roundnums-'+(j+1);
+				//y.roundNum = parseInt(r) + 1;
+			}
+		}
 	}
+	// @todo avoid matches input
+	// @todo previous matches input
 }
 
 /**
@@ -741,244 +767,6 @@ function makeRoundRobinPairings(players) {
 }
 
 */
-
-function duplicateOrAvoid(first, second) {
-	if (first === second) {
-		console.log(logPrefix+"GAHHHHH");
-		return {};
-	}
-
-	let one = previousMatches.has(first+second)
-	let two = previousMatches.has(second+first)
-	let duplicate = one && two
-
-
-	let avoid = false
-	for (let key in matchesToAvoid) {
-		if (first.includes(key)) {
-			if (second.includes(matchesToAvoid[key])) {
-				avoid = true
-			}
-		} else if (second.includes(key)) {
-			if (first.includes(matchesToAvoid[key])) {
-				avoid = true
-			}
-		}
-	}
-
-	return {
-		duplicate: duplicate,
-		avoid: avoid,
-	};
-}
-
-// if no non duplicate found by the end, start over at the beginning
-function replaceWithAnyNonduplicate(matches, username) {
-	for (let i = 0; i < matches.length; i++) {
-		let match = matches[i]
-		let result = duplicateOrAvoid(username, match.Participants[1])
-		let dup = result.duplicate
-		let avoid = result.avoid
-
-		if (!dup && !avoid) {
-			if (!match.Duplicate) {
-				unregisterMatch(match.Participants[0], match.Participants[1])
-			}
-			registerMatch(username, match.Participants[1])
-			matches[i] = {
-				Participants: [username, match.Participants[1]],
-				Duplicate:    dup}
-			return true
-		}
-
-		result = duplicateOrAvoid(username, match.Participants[0])
-		dup = result.duplicate
-		avoid = result.avoid
-		if (!dup && !avoid) {
-			if (!match.Duplicate) {
-				unregisterMatch(match.Participants[1], match.Participants[0])
-			}
-			registerMatch(username, match.Participants[0])
-			matches[i] = {
-				Participants: [username, match.Participants[0]],
-					Duplicate:    dup}
-			return true
-		}
-	}
-	return false
-}
-
-function replaceWithAnyCohost(matches, username) {
-	let lastFoundCohost = -1
-	for (let i = 0; i < matches.length; i++) {
-		let match = matches[i]
-
-		if (isCohost(match.Participants[0])) {
-			let result = duplicateOrAvoid(username, match.Participants[1])
-			let dup = result.duplicate
-			let avoid = result.avoid
-
-			if (!avoid) {
-				lastFoundCohost = i
-			}
-			if (!dup && !avoid) {
-				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
-				}
-				registerMatch(username, match.Participants[1])
-
-				matches[i] = {
-					Participants: [username, match.Participants[1]],
-						Duplicate:    dup}
-				return true
-			}
-		}
-		if (isCohost(match.Participants[1])) {
-			let result = duplicateOrAvoid(username, match.Participants[0])
-			let dup = result.duplicate
-			let avoid = result.avoid
-
-			if (!avoid) {
-				lastFoundCohost = i
-			}
-			if (!dup && !avoid) {
-				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
-				}
-				registerMatch(username, match.Participants[0])
-
-				matches[i] = {
-					Participants: [username, match.Participants[0]],
-						Duplicate:    dup}
-				return true
-			}
-		}
-	}
-
-	if (lastFoundCohost !== -1) {
-		let match = matches[lastFoundCohost]
-		if (isCohost(match.Participants[0])) {
-			let result = duplicateOrAvoid(username, match.Participants[1])
-			let dup = result.duplicate
-			let avoid = result.avoid
-
-			if (!avoid) {
-				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
-				}
-				registerMatch(username, match.Participants[0])
-
-				matches[lastFoundCohost] = {
-					Participants: [username, match.Participants[1]],
-						Duplicate:    dup}
-				return true
-			}
-		}
-		if (isCohost(match.Participants[1])) {
-			let result = duplicateOrAvoid(username, match.Participants[0])
-			let dup = result.duplicate
-			let avoid = result.avoid
-
-			if (!avoid) {
-				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
-				}
-				registerMatch(username, match.Participants[0])
-
-				matches[lastFoundCohost] = {
-					Participants: [username, match.Participants[1]],
-						Duplicate:    dup}
-				return true
-			}
-		}
-	}
-	return false
-}
-
-function registerMatch(first, second) {
-	previousMatches.set(first+second, true)
-	previousMatches.set(second+first, true)
-}
-
-function unregisterMatch(first, second) {
-	previousMatches.delete(first+second)
-	previousMatches.delete(second+first)
-}
-
-function regenerateMatchesMap(blob) {
-	let matchObjects = JSON.parse(blob)
-	// ... @TODO
-}
-
-function isCohost(username) {
-	return cohosts[username]
-}
-
-function makeMatches(availableParticipants) {
-	currentMatches = {}
-
-	while (availableParticipants.length > 1) {
-		console.log(logPrefix + 'Remaining available participants to match', availableParticipants.length);
-		let second = 1
-
-		let result = duplicateOrAvoid(availableParticipants[0], availableParticipants[second])
-		let dup = result.duplicate
-		let avoid = result.avoid
-
-		if (dup || avoid) {
-			console.log(logPrefix + "found a duplicate ("+dup+") avoid ("+avoid+") between "+availableParticipants[0]+" and "+ availableParticipants[second])
-		}
-		while ((dup || avoid) && (second <= availableParticipants.length-2)) { // -1 for index numbering and -1 for line 140
-			console.log(logPrefix + "trying to fix")
-			second++
-			result = duplicateOrAvoid(availableParticipants[0], availableParticipants[second])
-			dup = result.duplicate
-			avoid = result.avoid
-		}
-
-		let avoided = true
-		if (dup || avoid) {
-			// if no non duplicate found by the end, start over at the beginning
-			let ok = replaceWithAnyNonduplicate(currentMatches, availableParticipants[0])
-			if (!ok) {
-				avoided = false
-				console.log(logPrefix + "Unable to avoid duplicate!")
-			} else {
-				dup = false
-				avoid = false
-			}
-		}
-
-		if ((!dup && !avoid) || ((dup || avoid) && !avoided)) {
-			registerMatch(availableParticipants[0], availableParticipants[second]);
-			console.log(logPrefix + "Matching "+availableParticipants[0]+" and "+availableParticipants[second]+" ("+ second);
-			let m = {
-				Duplicate: dup,
-				Participants: [availableParticipants[0], availableParticipants[second]],
-			};
-			currentMatches.push(m);
-			delete availableParticipants[second];
-			availableParticipants.shift();
-		} else {
-			console.log(logPrefix + "FUCK!")
-		}
-
-		if (availableParticipants.length === 1) {
-			if (!isCohost(availableParticipants[0])) {
-				console.log(logPrefix + "BAD! odd participant left out")
-				// switch odd participant with any cohost
-
-				let ok = replaceWithAnyCohost(currentMatches, availableParticipants[0])
-				if (!ok) {
-					console.log(logPrefix + "Well this is awkward... couldn't find a cohost to switch with the odd participant")
-				}
-			}
-		}
-	}
-
-	return true
-}
-
 
 /**
  * Hide & cancel
@@ -1078,7 +866,8 @@ function showIgnoreUsersSelect() {
 	
 	// Generate pairs if new run.
 	// currentMatches = makeRoundRobinPairings(assignableUsers);
-	currentMatches = makeMatches(assignableUsers)
+	let generated = makeMatches(assignableUsers)
+	console.log(logPrefix + "currentMatches "+currentMatches.length)
 	
 	// If there are more pairs than current round #, then reset round #.
 	// This would happen when there's a new meeting and there are no
@@ -1392,39 +1181,14 @@ function makeMatches(availableParticipants) {
 	return true
 }
 
-function containsCohost(username) {
-	let lower = username.toLowerCase()
-	return lower.includes("cohost") ||
-		lower.includes("co-host") ||
-		lower.includes("co host");
-}
-
-/*
-* Fisher-Yates (aka Knuth) Shuffle.
- */
-function shuffle(array) {
-  let currentIndex = array.length,  randomIndex;
-
-  // While there remain elements to shuffle.
-  while (currentIndex !== 0) {
-
-    // Pick a remaining element.
-    randomIndex = Math.floor(Math.random() * currentIndex);
-    currentIndex--;
-
-    // And swap it with the current element.
-    [array[currentIndex], array[randomIndex]] = [
-      array[randomIndex], array[currentIndex]];
-  }
-
-  return array;
-}
 
 /**
  * 
  * @return {Array} y Returns an array of objects representing users.
  */
 function getAllAssignableUsers() {
+		console.log(logPrefix + " getAllAssignableUsers0")
+
 	// Relies on clicking the first Assign button.
 	if (!assignButtons[0])
 		return;
@@ -1464,6 +1228,7 @@ function getAllAssignableUsers() {
 		});
 	}
 	assignButtons[0].click(); // unclick
+		console.log(logPrefix + " getAllAssignableUsers "+y.length)
 
 	let shuffled = shuffle(y);
 	shuffled.push(lastCohost)
