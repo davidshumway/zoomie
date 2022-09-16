@@ -20,9 +20,7 @@
  * 		extension cache.
  *
  * 	if in localStorage, will the matches get above 10MB?
- * 	file IO is so much easier...
- *
- *
+*
  */
 
 /**
@@ -34,10 +32,9 @@ let assignableUsers = [], // Assignable users
 	userDict = {}, // Always updates to match assignableUsers. {'name': {'name': <str>, 'index': <#>}}
 	currentMatches = {},
 	previousMatches = new Map(),
+	asterisksUsers = new Map(),
 	matchesToAvoid = {}, // based on username, which can change... FUN
 	cohosts = {},
-	ignoredUsers = {}, // E.g., 1+ co-hosts not to place in rooms.
-	asterisksUsers = new Map(),
 	primaryCohost = '',
 	elements = {
 		userIgnoreSelect: null,
@@ -47,9 +44,9 @@ let assignableUsers = [], // Assignable users
 	},
 	breakoutRoomHeight = 0,
 	generatedPairs = false,
-	breakoutWindowOpen = false, // Tracks breakout dialog state (open/closed)
-	storage = new IDBDatabase(),
-	storageName = 'bonoboConnectMatches'
+	breakoutWindowOpen = false // Tracks breakout dialog state (open/closed)
+//	storage = new IDBDatabase(),
+//	storageName = 'bonoboConnectMatches'
 	; 
 
 /**
@@ -59,23 +56,23 @@ function load() {
 	// Add css styles
 	add_styles()
 
-
-	// Let us open our database
-	const DBOpenRequest = window.indexedDB.open(storageName);
-
-    // Register two event handlers to act on the database being opened successfully, or not
-    DBOpenRequest.onerror = (event) => {
-		// @TODO fuck... popup and ask to reload?
-      // note.appendChild(createListItem('Error loading database.'));
-    };
-
-	DBOpenRequest.onsuccess = (event) => {
-		//note.appendChild(createListItem('Database initialised.'));
-
-		// Store the result of opening the database in the db variable. This is used a lot below
-		storage = DBOpenRequest.result;
-	};
-
+	/*
++	// Let us open our database
++	const DBOpenRequest = window.indexedDB.open(storageName);
++
++    // Register two event handlers to act on the database being opened successfully, or not
++    DBOpenRequest.onerror = (event) => {
++		// @TODO fuck... popup and ask to reload?
++      // note.appendChild(createListItem('Error loading database.'));
++    };
++
++	DBOpenRequest.onsuccess = (event) => {
++		//note.appendChild(createListItem('Database initialised.'));
++
++		// Store the result of opening the database in the db variable. This is used a lot below
++		storage = DBOpenRequest.result;
++	};
+*/
 
 	// Zoomie history pairings. Not required as of now.
 	//if (!localStorage['zoomie-history']) {
@@ -110,6 +107,25 @@ function load() {
 	
 	// If less than 2 seconds, then zoom.us overwrites getBreakoutButton().
 	//setTimeout(getBreakoutButton, 2000);
+}
+function updateStorage() {
+
+}
+
+function loadStorage() {
+	const objectStore = storage.transaction(storageName).objectStore(storageName);
+
+
+    objectStore.openCursor().onsuccess = (event) => {
+		const cursor = event.target.result;
+		// Check if there are no (more) cursor items to iterate through
+		if (!cursor) {
+			// No more items to iterate through, we quit.
+			note.appendChild(createListItem('Entries all displayed.'));
+			return;
+		}
+	};
+
 }
 
 function updateStorage() {
@@ -191,7 +207,7 @@ function add_styles() {
 // Then, set another interval to check when the boRoomMgmtWindow
 // disappears.
 window.setInterval(function() {
-	
+	console.log(logPrefix + "Entering setInterval")
 	// Breakout window popup
 	let a = document.getElementById('boRoomMgmtWindow');
 	if (a && !breakoutWindowOpen) {
@@ -203,14 +219,15 @@ window.setInterval(function() {
 		// Reset the breakoutWindowOpen boolean.
 		breakoutWindowOpen = false;
 	}
-	
+
+	console.log(logPrefix + "Before Recreate button popup")
 	// "Recreate" button popup
 	let b = document.getElementsByClassName('recreate-paper__footer');
 	if (b && b.length === 1 && !b[0].zoomie_mark) {
 		b.zoomie_mark = 1;
 		b[0].onclick = attachBreakoutContainer;
 	}
-}, 100);
+}, 1000);
 
 
 
@@ -245,6 +262,7 @@ function detachSettings() {
  * @param 
  */
 function attachSettings() {
+	console.log(logPrefix + "Entering attachSettings()")
 	
 	////////////////////////////////////////////////////////////////
 	// Dialog container
@@ -335,7 +353,7 @@ function attachSettings() {
 	z = document.createElement('input');
 	z.type = 'number';
 	z.min = 1; // No negatives
-	z.max = generatedPairs.length; // No negatives
+	z.max = currentMatches.length; // No negatives
 	z.size = 4;
 	z.className = 'zoomieSecondsInput';
 	//z.value = parseInt(localStorage['zoomie-roundNumber']); // parseInt for cleaning
@@ -508,16 +526,6 @@ function autoCloseRooms() {
  * User accepted pairings and opened rooms, so finalize pairs list.
  */
 function updatePairingsFinal() {
-	/*
-	let r = parseInt(localStorage['zoomie-roundNumber']);
-	if (r >= generatedPairs.length) {
-		// E.g., if there are 6 users there will be 5 rounds,
-		// so if it's round 5 and there are 5 rounds, reset the counter.
-		// Otherwise, e.g., if round 4, then make it round 5 next.
-		localStorage['zoomie-roundNumber'] = 1;
-	} else {
-		localStorage['zoomie-roundNumber'] = r + 1;
-	}*/
 	
 	// Remove the -Auto- button.
 	elements.autoButton.parentNode.removeChild(elements.autoButton);
@@ -556,7 +564,7 @@ function addUserSelect() {
 		let pnum = parseInt(i)+1; // Participant number. Start at 1, not 0.
 		let z = document.createElement('div');
 		z.setAttribute('style', 'width:100%;');
-		z.className = 'cohostList' + (i % 2 === 0 ? 'Odd' : 'Even');
+		z.className = 'ignoreList' + (i % 2 === 0 ? 'Odd' : 'Even');
 		div.appendChild(z);
 		// checkbox
 		let y2 = document.createElement('input');
@@ -627,25 +635,23 @@ function addUserSelect() {
 		///////////////////////////////////////////////////////////////
 		// 66% width (32% in use)
 		//let roundNum = parseInt(localStorage['zoomie-roundNumber']);
-		for (let r in generatedPairs) {
-			// r = round num
-			for (let j in generatedPairs[r]) {
+			for (let j in currentMatches[r]) {
 				// pairings
-				let pairing = generatedPairs[r][j];
-				let adduser = false;
-				if (pairing['p1'] === assignableUsers[i].name) {
+				var pairing = j.Participants;
+				var adduser = false;
+				if (pairing[0] === assignableUsers[i].name) {
 					// add p2
-					if (pairing['p2'] == null) {
+					if (pairing[1] === null) {
 						adduser = '--';
 					} else {
-						adduser = parseInt(userDict[pairing['p2']].index) + 1;
+						adduser = parseInt(userDict[pairing[1]].index) + 1;
 					}
-				} else if (pairing['p2'] === assignableUsers[i].name) {
+				} else if (pairing[1] === assignableUsers[i].name) {
 					// add p1
-					if (pairing['p1'] == null) {
+					if (pairing[0] === null) {
 						adduser = '--';
 					} else {
-						adduser = parseInt(userDict[pairing['p1']].index) + 1;
+						adduser = parseInt(userDict[pairing[0]].index) + 1;
 					}
 				}
 				if (adduser) {
@@ -657,7 +663,6 @@ function addUserSelect() {
 					y.roundNum = parseInt(r)+1;
 				}
 			}
-		}
 		//highlightRoundNum(roundNum);
 	}
 }
@@ -694,7 +699,7 @@ function makeRoundRobinPairings(players) {
 	  }
   }
   
-  if (newp.length % 2 == 1) {
+  if (newp.length % 2 === 1) {
     // If co-host
     if (primaryCohost)
 		newp.push(primaryCohost);
@@ -1009,15 +1014,16 @@ function addToRooms() {
 	hideIgnoreUsersSelect();
 	
 	// add users to rooms
+	//let r = parseInt(localStorage['zoomie-roundNumber']);
 	let roomNo = 0;
 	
 	// Sanity check. No pairs (e.g., none or one user present).
-	if (!generatedPairs) {
+	if (!currentMatches) {
 		// Exit silently.
 		return; 
 	}
 	// Sanity check. If there aren't enough rooms, then quit right off.
-	if (assignButtons.length < generatedPairs.length) {
+	if (assignButtons.length < currentMatches.length) {
 		// Need to have more breakout rooms!
 		// Alert the zoomie user.
 		alert('Please create more breakout rooms. There are not enough rooms for every pair of participants.');
@@ -1025,9 +1031,9 @@ function addToRooms() {
 	}
 	
 	// Loop to add to rooms
-	for (let i in generatedPairs) {
-		let p = generatedPairs[i].Participants;
-		if (p[0] == null || p[1] == null) continue; // Leave out solos
+	for (let i in currentMatches) {
+		let p = i.Participants;
+		if (p[0] === null || p[1] === null) continue; // Leave out solos
 		// Made it past nulls. Open "Assign" dialog box.
 		assignButtons[roomNo].click();
 		// Loops through checkboxes.
@@ -1071,8 +1077,8 @@ function showIgnoreUsersSelect() {
 	makeUserDict();
 	
 	// Generate pairs if new run.
-	// generatedPairs = makeRoundRobinPairings(assignableUsers);
-	generatedPairs = makeMatches(assignableUsers);
+	// currentMatches = makeRoundRobinPairings(assignableUsers);
+	currentMatches = makeMatches(assignableUsers)
 	
 	// If there are more pairs than current round #, then reset round #.
 	// This would happen when there's a new meeting and there are no
@@ -1117,7 +1123,7 @@ function showIgnoreUsersSelect() {
  * Closes all Assign button popups before running auto-assign.
  */
 function closeAssignPopups() {
-	let assignButtons = document.getElementsByClassName(
+	let a = document.getElementsByClassName(
 		'zmu-btn bo-room-item-container__ghost-blue zmu-btn--ghost ' +
 		'zmu-btn__outline--blue zmu-btn--sm'
 	);
@@ -1129,7 +1135,7 @@ function closeAssignPopups() {
 			// But for the sake of completeness, it's worth it to 
 			// assume that in some case two dialog popups would
 			// be open simultaneously.
-			assignButtons[i].click();
+			a[i].click();
 		}
 	}
 }
@@ -1141,12 +1147,277 @@ function resetPairings() {
 		let x = document.getElementsByClassName(
 			'zmu-data-selector-item__checkbox zmu-data-selector-item__checkbox--checked'
 		);
-		for (let k=x.length-1; k>=0; k--) {
-			//~ console.logPrefix('removing user from room');
+		for (let k = x.length - 1; k >= 0; k--) {
+			//~ console.log('removing user from room');
 			x[k].click(); // Unclick the user.
 		}
 		assignButtons[i].click(); // Close dialog
 	}
+}
+
+function duplicateOrAvoid(first, second) {
+	if (first === second) {
+		console.log(logPrefix+"GAHHHHH");
+		return {};
+	}
+
+	let one = previousMatches.has(first+second)
+	let two = previousMatches.has(second+first)
+	let duplicate = one && two
+
+
+	let avoid = false
+	for (let key in matchesToAvoid) {
+		if (first.includes(key)) {
+			if (second.includes(matchesToAvoid[key])) {
+				avoid = true
+			}
+		} else if (second.includes(key)) {
+			if (first.includes(matchesToAvoid[key])) {
+				avoid = true
+			}
+		}
+	}
+
+	return {
+		duplicate: duplicate,
+		avoid: avoid,
+	};
+}
+
+// if no non duplicate found by the end, start over at the beginning
+function replaceWithAnyNonduplicate(matches, username) {
+	for (let i = 0; i < matches.length; i++) {
+		let match = matches[i]
+		let result = duplicateOrAvoid(username, match.Participants[1])
+		let dup = result.duplicate
+		let avoid = result.avoid
+
+		if (!dup && !avoid) {
+			if (!match.Duplicate) {
+				unregisterMatch(match.Participants[0], match.Participants[1])
+			}
+			registerMatch(username, match.Participants[1])
+			matches[i] = {
+				Participants: [username, match.Participants[1]],
+				Duplicate:    dup}
+			return true
+		}
+
+		result = duplicateOrAvoid(username, match.Participants[0])
+		dup = result.duplicate
+		avoid = result.avoid
+		if (!dup && !avoid) {
+			if (!match.Duplicate) {
+				unregisterMatch(match.Participants[1], match.Participants[0])
+			}
+			registerMatch(username, match.Participants[0])
+			matches[i] = {
+				Participants: [username, match.Participants[0]],
+					Duplicate:    dup}
+			return true
+		}
+	}
+	return false
+}
+
+function replaceWithAnyCohost(matches, username) {
+	let lastFoundCohost = -1
+	for (let i = 0; i < matches.length; i++) {
+		let match = matches[i]
+
+		if (isCohost(match.Participants[0])) {
+			let result = duplicateOrAvoid(username, match.Participants[1])
+			let dup = result.duplicate
+			let avoid = result.avoid
+
+			if (!avoid) {
+				lastFoundCohost = i
+			}
+			if (!dup && !avoid) {
+				if (!match.Duplicate) {
+					unregisterMatch(match.Participants[0], match.Participants[1])
+				}
+				registerMatch(username, match.Participants[1])
+
+				matches[i] = {
+					Participants: [username, match.Participants[1]],
+						Duplicate:    dup}
+				return true
+			}
+		}
+		if (isCohost(match.Participants[1])) {
+			let result = duplicateOrAvoid(username, match.Participants[0])
+			let dup = result.duplicate
+			let avoid = result.avoid
+
+			if (!avoid) {
+				lastFoundCohost = i
+			}
+			if (!dup && !avoid) {
+				if (!match.Duplicate) {
+					unregisterMatch(match.Participants[0], match.Participants[1])
+				}
+				registerMatch(username, match.Participants[0])
+
+				matches[i] = {
+					Participants: [username, match.Participants[0]],
+						Duplicate:    dup}
+				return true
+			}
+		}
+	}
+
+	if (lastFoundCohost !== -1) {
+		let match = matches[lastFoundCohost]
+		if (isCohost(match.Participants[0])) {
+			let result = duplicateOrAvoid(username, match.Participants[1])
+			let dup = result.duplicate
+			let avoid = result.avoid
+
+			if (!avoid) {
+				if (!match.Duplicate) {
+					unregisterMatch(match.Participants[0], match.Participants[1])
+				}
+				registerMatch(username, match.Participants[0])
+
+				matches[lastFoundCohost] = {
+					Participants: [username, match.Participants[1]],
+						Duplicate:    dup}
+				return true
+			}
+		}
+		if (isCohost(match.Participants[1])) {
+			let result = duplicateOrAvoid(username, match.Participants[0])
+			let dup = result.duplicate
+			let avoid = result.avoid
+
+			if (!avoid) {
+				if (!match.Duplicate) {
+					unregisterMatch(match.Participants[0], match.Participants[1])
+				}
+				registerMatch(username, match.Participants[0])
+
+				matches[lastFoundCohost] = {
+					Participants: [username, match.Participants[1]],
+						Duplicate:    dup}
+				return true
+			}
+		}
+	}
+	return false
+}
+
+function registerMatch(first, second) {
+	previousMatches.set(first+second, true)
+	previousMatches.set(second+first, true)
+}
+
+function unregisterMatch(first, second) {
+	previousMatches.delete(first+second)
+	previousMatches.delete(second+first)
+}
+
+function regenerateMatchesMap(blob) {
+	let matchObjects = JSON.parse(blob)
+	// ... @TODO
+}
+
+function isCohost(username) {
+	return cohosts[username]
+}
+
+function makeMatches(availableParticipants) {
+	currentMatches = {}
+
+	while (availableParticipants.length > 2) {
+		console.log(logPrefix + 'Remaining available participants to match', availableParticipants.length);
+		let second = 1
+
+		let result = duplicateOrAvoid(availableParticipants[0], availableParticipants[second])
+		let dup = result.duplicate
+		let avoid = result.avoid
+
+		if (dup || avoid) {
+			console.log(logPrefix + "found a duplicate ("+dup+") avoid ("+avoid+") between "+availableParticipants[0]+" and "+ availableParticipants[second])
+		}
+		while ((dup || avoid) && (second <= availableParticipants.length-2)) { // -1 for index numbering and -1 for line 140
+			console.log(logPrefix + "trying to fix")
+			second++
+			result = duplicateOrAvoid(availableParticipants[0], availableParticipants[second])
+			dup = result.duplicate
+			avoid = result.avoid
+		}
+
+		let avoided = true
+		if (dup || avoid) {
+			// if no non duplicate found by the end, start over at the beginning
+			let ok = replaceWithAnyNonduplicate(currentMatches, availableParticipants[0])
+			if (!ok) {
+				avoided = false
+				console.log(logPrefix + "Unable to avoid duplicate!")
+			} else {
+				dup = false
+				avoid = false
+			}
+		}
+
+		if ((!dup && !avoid) || ((dup || avoid) && !avoided)) {
+			registerMatch(availableParticipants[0], availableParticipants[second]);
+			console.log(logPrefix + "Matching "+availableParticipants[0]+" and "+availableParticipants[second]+" ("+ second);
+			let m = {
+				Duplicate: dup,
+				Participants: [availableParticipants[0], availableParticipants[second]],
+			};
+			currentMatches.push(m);
+			delete availableParticipants[second];
+			availableParticipants.shift();
+		} else {
+			console.log(logPrefix + "FUCK!")
+		}
+
+		if (availableParticipants.length === 1) {
+			if (!isCohost(availableParticipants[0])) {
+				console.log(logPrefix + "BAD! odd participant left out")
+				// switch odd participant with any cohost
+
+				let ok = replaceWithAnyCohost(currentMatches, availableParticipants[0])
+				if (!ok) {
+					console.log(logPrefix + "Well this is awkward... couldn't find a cohost to switch with the odd participant")
+				}
+			}
+		}
+	}
+
+	return true
+}
+
+function containsCohost(username) {
+	let lower = username.toLowerCase()
+	return lower.includes("cohost") ||
+		lower.includes("co-host") ||
+		lower.includes("co host");
+}
+
+/*
+* Fisher-Yates (aka Knuth) Shuffle.
+ */
+function shuffle(array) {
+  let currentIndex = array.length,  randomIndex;
+
+  // While there remain elements to shuffle.
+  while (currentIndex !== 0) {
+
+    // Pick a remaining element.
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex--;
+
+    // And swap it with the current element.
+    [array[currentIndex], array[randomIndex]] = [
+      array[randomIndex], array[currentIndex]];
+  }
+
+  return array;
 }
 
 /**
@@ -1163,10 +1434,12 @@ function getAllAssignableUsers() {
 		'zmu-data-selector-item__text bo-room-assign-list-scrollbar__item-text'
 	);
 	if (x.length === 0) {
+		console.log(logPrefix + " Found zero in the room list")
 		//alert('(Zoomie) No assignable users!');
 		assignButtons[0].click(); // Close the box
 		return false;
 	}
+
 	asterisksUsers.clear()
 	let y = [];
 	let lastCohost = "";
@@ -1177,10 +1450,10 @@ function getAllAssignableUsers() {
 			asterisksUsers.set(username, true)
 			continue
 		}
-		if (containsCohost(assignableUsers[i].name) === true) {
-			cohosts.push(assignableUsers[i].name)
+		if (containsCohost(username) === true) {
+			cohosts.push(x[i].name)
 			if (lastCohost === "") {
-				lastCohost = assignableUsers[i].name
+				lastCohost = x[i].name
 				continue
 			}
 		}
@@ -1229,12 +1502,14 @@ function getAllAssignButtons() {
 	let x = document.getElementsByClassName(
 		'zmu-btn bo-room-item-container__ghost-blue zmu-btn--ghost zmu-btn__outline--blue zmu-btn--sm'
 	);
+	// @TODO click "Add Room"
 	if (x.length === 0) {
 		alert('(Zoomie) No assignable buttons!');
 		return false;
 	}
 	return x;
 }
+
 function makeUserDict() {
 	userDict = {}; // reset
 	for (let i in assignableUsers) {
