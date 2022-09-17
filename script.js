@@ -30,7 +30,7 @@ let logPrefix = 'Zoomie extension::';
 let assignableUsers = [], // Assignable users
 	assignButtons = [], // Assign buttons
 	userDict = {}, // Always updates to match assignableUsers. {'name': {'name': <str>, 'index': <#>}}
-	currentMatches = {},
+	currentMatches = [],
 	previousMatches = {},
 	registeredMatches = new Map(),
 	asterisksUsers = new Map(),
@@ -48,7 +48,7 @@ let assignableUsers = [], // Assignable users
 	breakoutWindowOpen = false // Tracks breakout dialog state (open/closed)
 //	storage = new IDBDatabase(),
 //	storageName = 'bonoboConnectMatches'
-	; 
+	;
 
 /**
  * Initialize the program.
@@ -105,7 +105,7 @@ function load() {
 	//if (!localStorage['zoomie-roundNumber']) {
 	//	localStorage['zoomie-roundNumber'] = 1;
 	//}
-	
+
 	// If less than 2 seconds, then zoom.us overwrites getBreakoutButton().
 	//setTimeout(getBreakoutButton, 2000);
 }
@@ -171,14 +171,14 @@ function add_styles() {
 	// 60px + 10px + 10px = 80px
 	GM_addStyle('.zoomieSeconds {background-color: #efefef; border-bottom: 1px solid blue; cursor: pointer; width: 100%; height: 48px; padding: 6px;}');
 	GM_addStyle('.zoomieSecondsInput {cursor: pointer; width: 60px; zoom: 1.2; border-radius: 8px; padding-left: 4px; text-align: center;}');
-	
+
 	// Overwrites to zoom styles
-	
-	GM_addStyle('.common-window {border: 0 !important; box-shadow: none !important; -webkit-box-shadow: none !important;}'); 
-	
+
+	GM_addStyle('.common-window {border: 0 !important; box-shadow: none !important; -webkit-box-shadow: none !important;}');
+
 	GM_addStyle('.ReactModal__Content {transform: none !important; top: 4% !important; left: 0 !important;}');
 	GM_addStyle('.ReactModal__Content--after-open {transform: none !important; top: 4% !important; left: 0 !important;}');
-	
+
 	GM_addStyle('#boRoomMgmtWindow {width: 98% !important; position: fixed !important; margin-left: 1%;}');
 }
 
@@ -238,7 +238,7 @@ function getBreakoutRoomHeight() {
 }
 
 /**
- * 
+ *
  */
 function detachSettings() {
 	elements.ignoreContainer.parentNode.removeChild(elements.ignoreContainer);
@@ -246,29 +246,29 @@ function detachSettings() {
 
 /**
  * Attach the settings elements to the dialog box.
- * @param 
+ * @param
  */
-function attachSettings() {
-	console.log(logPrefix + "Entering attachSettings()")
-	
+function attachZoomie() {
+	console.log(logPrefix + "Entering attachZoomie()")
+
 	////////////////////////////////////////////////////////////////
 	// Dialog container
 	////////////////////////////////////////////////////////////////
 	let a = document.getElementById('boRoomMgmtWindow');
-	
+
 	// Container for "-Auto-" button dialog
 	let z = document.createElement('div');
 	z.className = 'zoomie-ignoreContainer';
 	a.insertBefore(z, a.firstChild);
 	elements.ignoreContainer = z;
-	
+
 	// Ignore users title bar
 	z = document.createElement('div');
 	z.className = 'zoomie-ignoreUsersTitle';
 	z.innerText = 'Zoomie';
 	elements.ignoreContainer.appendChild(z);
 	elements.userIgnoreSelectTitle = z;
-	
+
 	//////////////////////////////////////////
 	// Ignore users main container
 	//////////////////////////////////////////
@@ -280,19 +280,18 @@ function attachSettings() {
 		z.innerHTML = // These are 50px tall. 12% + 26% + 60% = 98%
 	//		'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Ignore</div>'+
 	//		'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Co-host</div>'+
-			'<div class="ignoreLegend" style="width: 20% !important;overflow:hidden;">Participant</div>'+
-			'<div class="ignoreLegend" style="width: 20% !important;overflow:hidden;">Partners</div>'+
-			'<div class="ignoreLegend" style="width: 60% !important;overflow:hidden;">Settings</div>'+
-			'<br style="clear:both" />'; 
+			'<div class="ignoreLegend" style="width: 45% !important;overflow:hidden;">Participant</div>'+
+			'<div class="ignoreLegend" style="width: 45% !important;overflow:hidden;">Partners</div>'+
+			'<br style="clear:both" />';
 	}
-		
+
 	// Ignore users div to contain
 	z = document.createElement('div');
 	z.setAttribute('style', 'width:100%;height:400px;z-index:1004;display:none;background-color:#eee;overflow:auto;border-bottom:1px solid blue;');
 	elements.ignoreContainer.appendChild(z);
 	elements.userIgnoreSelectList = z;
 
-	
+
 	//////////////////////////////////////////
 	// Auto-close
 	//////////////////////////////////////////
@@ -301,15 +300,15 @@ function attachSettings() {
 	z.setAttribute('style', 'display:none;');
 	elements.ignoreContainer.appendChild(z);
 	elements.autoCloseDiv = z;
-	
-	// 
+
+	//
 	z = document.createElement('label');
 	z.innerText = 'Auto-close rooms after (seconds):  ';
 	z.style.cursor = 'pointer';
 	elements.autoCloseLabel = z;
 	elements.autoCloseDiv.appendChild(z);
-	
-	// 
+
+	//
 	z = document.createElement('input');
 	z.type = 'number';
 	z.min = 0; // No negatives
@@ -321,77 +320,8 @@ function attachSettings() {
 		localStorage['zoomie-closeTime'] = parseInt(this.value);
 		console.log(logPrefix + 'Updated close time');
 	}
-	
-	//////////////////////////////////////////
-	// Round number
-	//////////////////////////////////////////
-	/*
-	z = document.createElement('div');
-	z.className = 'zoomieSeconds';
-	z.setAttribute('style', 'display:none;');
-	elements.ignoreContainer.appendChild(z);
-	elements.roundSelectDiv = z;
-
-	z = document.createElement('label');
-	z.innerText = 'Current round:  ';
-	z.style.cursor = 'pointer';
-	elements.roundNumLabel = z;
-	elements.roundSelectDiv.appendChild(z);
-	
-	// 
-	z = document.createElement('input');
-	z.type = 'number';
-	z.min = 1; // No negatives
-	z.max = currentMatches.length; // No negatives
-	z.size = 4;
-	z.className = 'zoomieSecondsInput';
-	//z.value = parseInt(localStorage['zoomie-roundNumber']); // parseInt for cleaning
-	elements.roundNumLabel.appendChild(z);
-	z.onchange = function() {
-		if (this.value < 1) this.value = 1;
-		//localStorage['zoomie-roundNumber'] = parseInt(this.value);
-		//highlightRoundNum(parseInt(this.value));
-		//~ console.logPrefix('(Zoomie) updated close time');
-	}
-
-	 */
-
-	// @TODO provide input for previous matches
-	/*
-	z = document.createElement('div');
-	a = document.createElement('label');
-	a.value = "matches to avoid (JSON)";
-	z = document.createElement('input');
-	z.type = 'text';
-	z.onchange = function() {
-		if (this.value !== "") {
-		  // json decode
-		  // populate matches to avoid array
-		}
-	}
-
-	z = document.createElement('div');
-	a = document.createElement('label');
-	a.value = "previous matches (JSON)";
-	z = document.createElement('input');
-	z.type = 'text';
-	z.onchange = function() {
-		if (this.value !== "") {
-		  // json decode
-		  // populate previous matches array
-			regenerateMatchesMap(this.value)
-		}
-	}
-
-	elements.ignoreContainer.appendChild(z);
 
 
-
-	 */
-
-	// @TODO provide display of all matches
-	// @TODO provide input for matches to avoid
-	
 	//////////////////////////////////////////
 	// Accept ignored users button
 	//////////////////////////////////////////
@@ -399,7 +329,7 @@ function attachSettings() {
 	z.setAttribute('style', 'width: 100%; text-align: center; padding: 10px 0; background-color: #eee; border-bottom: 1px solid blue; display: none;');
 	elements.ignoreContainer.appendChild(z);
 	elements.okayButtonDiv = z;
-	
+
 	z = document.createElement('button');
 	z.setAttribute('style', 'z-index:1002;display:none;');
 	z.className = 'btn btn-primary';
@@ -407,7 +337,7 @@ function attachSettings() {
 	z.onclick = addToRooms;
 	elements.okayButtonDiv.appendChild(z);
 	elements.userIgnoreSelectAccept = z;
-	
+
 	//////////////////////////////////////////
 	// Cancel button
 	//////////////////////////////////////////
@@ -421,10 +351,10 @@ function attachSettings() {
 }
 
 /**
- * After user clicks "Breakout Rooms" button, adds "Zoomie Settings".
+ * After user clicks "Breakout Rooms" button, adds "Zoomie".
  */
 function attachBreakoutContainer() {
-	
+
 	// Check footer exists
 	let y = document.getElementsByClassName(
 		//'bo-mgmtwindow-content__footer'
@@ -435,22 +365,22 @@ function attachBreakoutContainer() {
 		setTimeout(attachBreakoutContainer, 100);
 		return;
 	}
-	
+
 	// Remove any users from rooms
-	resetPairings(); 
+	resetPairings();
 	setTimeout(resetPairings, 200);
 	setTimeout(resetPairings, 400);
 	setTimeout(resetPairings, 600);
-	
+
 	// Add listener to "Open All Rooms" button but only if it exists.
 	if (!attachOpenAllRooms()) {
 		setTimeout(attachBreakoutContainer, 200);
 		return;
 	}
-	
+
 	// Gets height of window to work with.
 	getBreakoutRoomHeight();
-	
+
 	// Remove button if exists.
 	if (elements.autoButton) {
 		try {
@@ -460,28 +390,28 @@ function attachBreakoutContainer() {
 			console.log(logPrefix + 'Could not remove autoButton');
 		}
 	}
-	
+
 	// An "auto"-pair button that can be clicked any number
-	// of times, continuously randomly permutating the 
+	// of times, continuously randomly permutating the
 	// people into breakout rooms of size=2.
 	let z = document.createElement('button');
 	y[0].insertBefore(z, y[0].firstChild);
-	z.innerHTML = 'Zoomie Settings';
+	z.innerHTML = 'Zoomie';
 	z.onclick = showIgnoreUsersSelect;
-	z.className = 
+	z.className =
 		'zmu-btn bo-bottom-btn zmu-btn--default zmu-btn__outline--blue';
 		// Changed Feb. 2021
 		//'zmu-btn zm-btn-legacy zmu-btn--default zmu-btn__outline--blue';
 	z.style.marginRight = '10px';
 	elements.autoButton = z;
-	
+
 }
 
 /**
  * Perform an action when Open All Rooms is clicked.
- * 
+ *
  * Update (Feb. 2021): Button class updated.
- * 
+ *
  * @return: Boolean True if listener was added to "Open All Rooms" button.
  */
 function attachOpenAllRooms() {
@@ -528,7 +458,7 @@ function attachCloseAllRooms() {
 	}
 }
 /**
- * 
+ *
  */
 function autoCloseRooms() {
 	let x = document.getElementsByClassName(
@@ -549,10 +479,10 @@ function autoCloseRooms() {
  * User accepted pairings and opened rooms, so finalize pairs list.
  */
 function updatePairingsFinal() {
-	
+
 	// Remove the -Auto- button.
 	elements.autoButton.parentNode.removeChild(elements.autoButton);
-	
+
 	// Attach to close all rooms button.
 	setTimeout(attachCloseAllRooms, 100);
 
@@ -572,127 +502,41 @@ function closeAllRooms() {
  */
 function addUserSelect() {
 	// replace with avoid matches input
-	
+
 	let div = elements.userIgnoreSelectList;
 	div.innerHTML = '';
-	
+
 	// No users?
 	if (!assignableUsers || assignableUsers.length === 0) {
 		div.innerHTML = '<br><center><b>No users found!</b></center><br>';
 		return;
 	}
-	
+
 	// All users loop
-	for (let i in assignableUsers) {
-		// [{name: '---'}, ...]
+	for (let i in currentMatches) {
 		let pnum = parseInt(i)+1; // Participant number. Start at 1, not 0.
-		/*
+		let match = currentMatches[i].Participants
 		let z = document.createElement('div');
 		z.setAttribute('style', 'width:100%;');
 		z.className = 'ignoreList' + (i % 2 === 0 ? 'Odd' : 'Even');
 		div.appendChild(z);
-		// checkbox
-		let y2 = document.createElement('input');
-		y2.type = 'checkbox';
-		y2.user = assignableUsers[i].name;
-		y2.className = 'zoomieRadio1';
-		y2.onclick = function() {
-			if (this.checked) {
-				cohosts[this.user] = true;
-			} else {
-				cohosts[this.user] = false;
-				// Make sure "odd-numbered" is unchecked.
-				this.y1.checked = false;
-				if (this.user === primaryCohost) {
-					primaryCohost = ''; // reset
-				}
-			}
-			
-			// Reset round counter
-			//localStorage['zoomie-roundNumber'] = 1;
 
-			// REGENERATE THE PAIRINGS and redraw
-			hideIgnoreUsersSelect();
-			showIgnoreUsersSelect();
-		}
-		z.appendChild(y2);
-		// radio
-		let y1 = document.createElement('input');
-		y1.type = 'radio';
-		y1.name = 'zoomie-radio'; // any name, doesn't matter
-		y1.user = assignableUsers[i].name;
-		y1.className = 'zoomieRadio2';
-		y1.onclick = function() {
-			primaryCohost = this.user;
-			// If primary cohost, then must be "ignored" by default.
-			// So check the box automatically.
-			if (!this.y2.checked) {
-				this.y2.click();
-			}
-			
-			// Reset round counter
-			// localStorage['zoomie-roundNumber'] = 1;
-			// REGENERATE THE PAIRINGS and redraw
-			hideIgnoreUsersSelect();
-			showIgnoreUsersSelect();
-		}
-		z.appendChild(y1);
-		
-		// checked1
-		if (assignableUsers[i].name === primaryCohost) {
-			y1.checked = true;
-		}
-		// checked2
-		if (ignoredUsers[assignableUsers[i].name] === true) {
-			y2.checked = true;
-		}
-		// 
-		y2.y1 = y1;
-		y1.y2 = y2;
-		// Name (hide overflow)
 		let y = document.createElement('span');
-		y.setAttribute('style', 'width: 16%;overflow:hidden;display:inline-block;');//
-		y.innerText =  '('+(pnum<10 ? '0'+pnum : pnum)+') ' + assignableUsers[i].name;
+		y.setAttribute('style', 'width: 5%;height:24px;overflow:hidden;display:inline-block;');
+		y.innerText =  '('+(pnum<10 ? '0'+pnum : pnum)+') ';
 		z.appendChild(y);
 
-		 */
-		
-		///////////////////////////////////////////////////////////////
-		// If pairs have been generated, then show round pairings now.
-		///////////////////////////////////////////////////////////////
-		// 66% width (32% in use)
-		//let roundNum = parseInt(localStorage['zoomie-roundNumber']);
-		for (let j in currentMatches) {
-			// pairings
-			var pairing = j.Participants;
-			var adduser = false;
-			if (pairing[0] === assignableUsers[i].name) {
-				// add p2
-				if (pairing[1] === null) {
-					adduser = '--';
-				} else {
-					adduser = parseInt(userDict[pairing[1]].index) + 1;
-				}
-			} else if (pairing[1] === assignableUsers[i].name) {
-				// add p1
-				if (pairing[0] === null) {
-					adduser = '--';
-				} else {
-					adduser = parseInt(userDict[pairing[0]].index) + 1;
-				}
-			}
-			if (adduser) {
-				let y = document.createElement('span');
-				y.setAttribute('style', 'width: 2%;height:24px;border:1px solid blue;overflow:hidden;display:inline-block;text-align:center;');
-				y.innerText = (adduser < 10 ? '0' + adduser : adduser);
-				z.appendChild(y);
-				//y.className = 'roundnums';// roundnums-'+(j+1);
-				//y.roundNum = parseInt(r) + 1;
-			}
-		}
+
+		let x = document.createElement('span');
+		x.setAttribute('style', 'width: 25%;height:24px;border:1px solid blue;overflow:hidden;display:inline-block;text-align:center;');
+		x.innerText = match[0];
+		z.appendChild(x);
+
+		let w = document.createElement('span');
+		w.setAttribute('style', 'width: 25%;height:24px;border:1px solid blue;overflow:hidden;display:inline-block;text-align:center;');
+		w.innerText = match[1];
+		z.appendChild(w);
 	}
-	// @todo avoid matches input
-	// @todo previous matches input
 }
 
 /**
@@ -710,7 +554,7 @@ function highlightRoundNum(round) {
 */
 
 /**
- * 
+ *
  * https://stackoverflow.com/questions/6648512/
  * 		scheduling-algorithm-for-a-round-robin-tournament
  *
@@ -726,7 +570,7 @@ function makeRoundRobinPairings(players) {
 		  newp.push(p[i].name);
 	  }
   }
-  
+
   if (newp.length % 2 === 1) {
     // If co-host
     if (primaryCohost)
@@ -735,25 +579,25 @@ function makeRoundRobinPairings(players) {
 		newp.push(null);
   }
   p = JSON.parse(JSON.stringify(newp));
- 
+
   ////////////////////////////////////////////
   // TESTER
   // let p = ['a', 'b', 'c', 'd', 'e', null];
   ////////////////////////////////////////////
-  
+
   let playerCount = p.length;
   let rounds = playerCount - 1;
   let half = playerCount / 2;
   let tournamentPairings = [];
   let playerIndexes = p.map((_, i) => i); //1,2,0
   playerIndexes.shift()
-  
+
   for (let round = 0; round < rounds; round++) {
     let roundPairings = [];
     let newPlayerIndexes = [0].concat(playerIndexes);
     let firstHalf = newPlayerIndexes.slice(0, half);
     let secondHalf = newPlayerIndexes.slice(half, playerCount).reverse();
-	
+
     for (let i = 0; i < firstHalf.length; i++) {
       roundPairings.push({
         p1: p[firstHalf[i]],
@@ -779,7 +623,7 @@ function cancelIgnoreUsersSelect() {
 	try {
 		document.getElementsByClassName('window-content')[0].style.display = '';
 	} catch(e) {
-		
+
 	}
 }
 /**
@@ -787,48 +631,48 @@ function cancelIgnoreUsersSelect() {
  */
 function hideIgnoreUsersSelect() {
 	detachSettings();
-	
+
 	// Show the default dialogs
 	try {
 		document.getElementsByClassName('window-content')[0].style.display = '';
 	} catch(e) {
-		
+
 	}
 }
 
 /**
- * 
+ *
  */
 function addToRooms() {
 	// hide the zoomie select dialog
 	hideIgnoreUsersSelect();
-	
+
 	// add users to rooms
 	//let r = parseInt(localStorage['zoomie-roundNumber']);
 	let roomNo = 0;
-	
+
 	// Sanity check. No pairs (e.g., none or one user present).
 	if (!currentMatches) {
 		// Exit silently.
-		return; 
+		return;
 	}
 	// Sanity check. If there aren't enough rooms, then quit right off.
 	if (assignButtons.length < currentMatches.length) {
 		// Need to have more breakout rooms!
 		// Alert the zoomie user.
 		alert('Please create more breakout rooms. There are not enough rooms for every pair of participants.');
-		return; 
+		return;
 	}
-	
+
 	// Loop to add to rooms
 	for (let i in currentMatches) {
-		let p = i.Participants;
+		let p = currentMatches[i].Participants;
 		if (p[0] === null || p[1] === null) continue; // Leave out solos
 		// Made it past nulls. Open "Assign" dialog box.
 		assignButtons[roomNo].click();
 		// Loops through checkboxes.
 		let x = document.getElementsByClassName(
-			'zmu-data-selector-item'
+			'zmu-data-selector-item__text'
 		);
 		for (let k=0; k<x.length; k++) {
 			if (x[k].innerText === p[0]
@@ -839,20 +683,21 @@ function addToRooms() {
 		assignButtons[roomNo].click(); // Unclick/Close
 		roomNo++;
 	}
-	
+
 }
 
 /**
  * Show ignore users dialog box.
  */
 function showIgnoreUsersSelect() {
+	console.log(logPrefix+'entering showIgnoreUsersSelect')
 	// Close any popup dialog boxes that are opened when user clicks
 	// any of the "Assign" buttons.
 	closeAssignPopups();
-	
+
 	// Remove any users from rooms, then populate the users field.
 	resetPairings();
-	
+
 	// Update global user data.
 	assignButtons = getAllAssignButtons();
 	if (!assignButtons) { // silent fail after user alert
@@ -862,23 +707,23 @@ function showIgnoreUsersSelect() {
 	if (!assignableUsers) { // silent fail after user alert
 		//return;
 	}
-	
+
 	// Update makeUserDict
 	makeUserDict();
-	
+
 	// Generate pairs if new run.
 	// currentMatches = makeRoundRobinPairings(assignableUsers);
-	let generated = makeMatches(assignableUsers)
+	generatedPairs = makeMatches(assignableUsers)
 	console.log(logPrefix + "currentMatches "+currentMatches.length)
-	
+
 	// If there are more pairs than current round #, then reset round #.
 	// This would happen when there's a new meeting and there are no
-	// users joined yet and the round number is still here from the 
+	// users joined yet and the round number is still here from the
 	// last meeting.
 	//if (parseInt(localStorage['zoomie-roundNumber']) > generatedPairs.length) {
 	//	localStorage['zoomie-roundNumber'] = 1;
 	//}
-	
+
 	// ALWAYS GENERATE...
 				//~ if (!generatedPairs) {
 					//~ // new
@@ -886,9 +731,9 @@ function showIgnoreUsersSelect() {
 					//~ console.logPrefix('assignableUsers', assignableUsers);
 					//~ console.logPrefix('generatedPairs', generatedPairs);
 				//~ }
-	
+
 	// Attach the elements
-	attachSettings(); // Create the elements.
+	attachZoomie(); // Create the elements.
 	elements.userIgnoreSelectTitle.className = 'zoomie-ignoreUsersTitle zoomie-show';
 	elements.ignoreContainer.className = 'zoomie-ignoreContainer zoomie-show';
 	elements.userIgnoreSelect.style.display = '';
@@ -896,17 +741,16 @@ function showIgnoreUsersSelect() {
 	elements.autoCloseDiv.style.display = '';
 	elements.userIgnoreSelectList.style.display = '';
 	elements.okayButtonDiv.style.display = '';
-	elements.roundSelectDiv.style.display = '';
 	elements.userIgnoreSelectCancel.style.display = '';
-	
+
 	// Users
 	addUserSelect();
-	
+
 	// Hide the background dialogs
 	try {
 		document.getElementsByClassName('window-content')[0].style.display = 'none';
 	} catch(e) {
-		
+
 	}
 }
 
@@ -923,7 +767,7 @@ function closeAssignPopups() {
 		if (x[i].innerHTML !== '') {
 			// Typically only one opened at a time.
 			// Thus, could break here.
-			// But for the sake of completeness, it's worth it to 
+			// But for the sake of completeness, it's worth it to
 			// assume that in some case two dialog popups would
 			// be open simultaneously.
 			a[i].click();
@@ -949,7 +793,15 @@ function resetPairings() {
 function duplicateOrAvoid(first, second) {
 	if (first === second) {
 		console.log(logPrefix+"GAHHHHH");
-		return {};
+		return {duplicate: false, avoid: true};
+	}
+	if (first === "") {
+		console.log(logPrefix+"GAHHHHH");
+		return {duplicate: false, avoid: true};
+	}
+	if (second === "") {
+		console.log(logPrefix+"GAHHHHH");
+		return {duplicate: false, avoid: true};
 	}
 
 	let one = registeredMatches.has(first+second)
@@ -1132,13 +984,22 @@ function isCohost(username) {
 	return cohosts[username]
 }
 
-function makeMatches(availableParticipants) {
-	currentMatches = {}
+function makeMatches(assignableUsers) {
+	currentMatches = []
+	let availableParticipants = [...assignableUsers]
 
-	while (availableParticipants.length > 2) {
-		console.log(logPrefix + 'Remaining available participants to match', availableParticipants.length);
+	while (availableParticipants.length >= 2) {
+		console.log(logPrefix + 'Remaining available participants to match '+ availableParticipants.length);
 		let second = 1
 
+		if (availableParticipants[0] === "") {
+  			availableParticipants.splice(0, 1);
+			  continue
+		}
+		if (availableParticipants[second] === "") {
+  			availableParticipants.splice(second, 1);
+			  continue
+		}
 		let result = duplicateOrAvoid(availableParticipants[0], availableParticipants[second])
 		let dup = result.duplicate
 		let avoid = result.avoid
@@ -1169,14 +1030,14 @@ function makeMatches(availableParticipants) {
 
 		if ((!dup && !avoid) || ((dup || avoid) && !avoided)) {
 			registerMatch(availableParticipants[0], availableParticipants[second]);
-			console.log(logPrefix + "Matching "+availableParticipants[0]+" and "+availableParticipants[second]+" ("+ second);
+			console.log(logPrefix + "Matching "+availableParticipants[0]+" and "+availableParticipants[second]+" ("+ second+")");
 			let m = {
 				Duplicate: dup,
 				Participants: [availableParticipants[0], availableParticipants[second]],
 			};
 			currentMatches.push(m);
-			delete availableParticipants[second];
-			availableParticipants.shift();
+  			availableParticipants.splice(second, 1);
+  			availableParticipants.splice(0, 1);
 		} else {
 			console.log(logPrefix + "FUCK!")
 		}
@@ -1199,11 +1060,11 @@ function makeMatches(availableParticipants) {
 
 
 /**
- * 
+ *
  * @return {Array} y Returns an array of objects representing users.
  */
 function getAllAssignableUsers() {
-		console.log(logPrefix + " getAllAssignableUsers0")
+	console.log(logPrefix + " getAllAssignableUsers0")
 
 	// Relies on clicking the first Assign button.
 	if (!assignButtons[0])
@@ -1239,15 +1100,14 @@ function getAllAssignableUsers() {
 		}
 
 		// Add an attribute for our purposes
-		y.push({
-			name: username
-		});
+		y.push(username)
 	}
 	assignButtons[0].click(); // unclick
-		console.log(logPrefix + " getAllAssignableUsers "+y.length)
 
 	let shuffled = shuffle(y);
-	shuffled.push(lastCohost)
+	if (lastCohost !== "") {
+		shuffled.push(lastCohost)
+	}
 	return shuffled;
 }
 
@@ -1294,8 +1154,8 @@ function getAllAssignButtons() {
 function makeUserDict() {
 	userDict = {}; // reset
 	for (let i in assignableUsers) {
-		userDict[assignableUsers[i].name] = {
-			name: assignableUsers[i].name,
+		userDict[assignableUsers[i]] = {
+			name: assignableUsers[i],
 			index: i
 		}
 	}
