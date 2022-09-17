@@ -31,10 +31,12 @@ let assignableUsers = [], // Assignable users
 	assignButtons = [], // Assign buttons
 	userDict = {}, // Always updates to match assignableUsers. {'name': {'name': <str>, 'index': <#>}}
 	currentMatches = [],
-	previousMatches = {},
+	previousMatches = [],
+	previousMatchesKey = "previousMatches",
 	registeredMatches = new Map(),
 	asterisksUsers = new Map(),
-	matchesToAvoid = {}, // based on username, which can change... FUN
+	matchesToAvoid = [], // based on username, which can change... FUN
+	matchesToAvoidKey = "matchesToAvoid",
 	cohosts = new Map(),
 	primaryCohost = '',
 	elements = {
@@ -60,6 +62,7 @@ function load() {
 	// Add css styles
 	add_styles()
 
+	loadStorage()
 
 	// Saved - time to close
 	// Saved setting for auto-close time
@@ -76,11 +79,18 @@ function updateStorage() {
 	// previousMatches.stringify()
 	// put updates in localStorage
 
+	console.log(logPrefix+" entering updateStorage")
+	let storage = Window.localStorage
+	storage.setItem(matchesToAvoidKey, JSON.stringify(matchesToAvoid))
+	storage.setItem(previousMatchesKey, JSON.stringify(previousMatches))
+	storage.setItem(previousMatchesKey, JSON.stringify(previousMatches))
 }
 
 function loadStorage() {
-	// load from localStorage
-
+	console.log(logPrefix+" entering loadStorage")
+	let storage = Window.localStorage
+	populateMatchesToAvoid(storage.getItem(matchesToAvoidKey))
+	populateMatches(storage.getItem(previousMatchesKey))
 }
 
 /**
@@ -338,17 +348,20 @@ function attachZoomieSettings() {
 	elements.zoomieSettingsInput.appendChild(z);
 	z.onchange = function() {
 		populateMatchesToAvoid(this.value)
+		updateStorage()
 		console.log(logPrefix + 'Updated matches to avoid');
 	}
 
 	//
 	z = document.createElement('input');
 	z.type = 'text';
+	console.log(logPrefix+" putting value into input "+JSON.stringify(previousMatches))
 	z.value = JSON.stringify(previousMatches); // No negatives
 	z.className = 'zoomieInput';
 	elements.zoomieSettingsInput.appendChild(z);
 	z.onchange = function() {
 		populateMatches(this.value)
+		updateStorage()
 		console.log(logPrefix + 'Updated previous matches');
 	}
 
@@ -521,7 +534,12 @@ function updatePairingsFinal() {
 	// Attach to close all rooms button.
 	setTimeout(attachCloseAllRooms, 100);
 
-	//@TODO write to storage
+	console.log(logPrefix+" updatePairingsFinal before len(previousMatches) "+previousMatches.length)
+	previousMatches = previousMatches.concat(currentMatches)
+	console.log(logPrefix+" updatePairingsFinal after len(previousMatches) "+previousMatches.length)
+	currentMatches = []
+
+	updateStorage()
 }
 
 /**
@@ -763,6 +781,8 @@ function closeAssignPopups() {
 }
 
 function resetPairings() {
+	currentMatches = []
+
 	// Go through every room and remove any users in the room.
 	for (let i=0; i<assignButtons.length; i++) {
 		assignButtons[i].click(); // Open dialog
@@ -951,8 +971,9 @@ function unregisterMatch(first, second) {
 }
 
 function populateMatches(blob) {
-	// ... @TODO
+	console.log(logPrefix+"populateMatches0")
 	previousMatches = JSON.parse(blob)
+	console.log(logPrefix+"populateMatches1 "+previousMatches.length)
 	registeredMatches.clear()
 
 	for (let i = 0; i < previousMatches.length; i++) {
@@ -962,9 +983,10 @@ function populateMatches(blob) {
 }
 
 function populateMatchesToAvoid(blob) {
-	// ... @TODO
 	// format [][]string {[['rose', 'larry'], ['a', 'b']]}
+	console.log(logPrefix+"populateMatchesToAvoid0")
 	matchesToAvoid = JSON.parse(blob)
+	console.log(logPrefix+"populateMatchesToAvoid1 "+matchesToAvoid.length)
 }
 
 function isCohost(username) {
@@ -1144,7 +1166,7 @@ function getAllAssignButtons() {
 	let x = document.getElementsByClassName(
 		'zmu-btn bo-room-item-container__ghost-blue zmu-btn--ghost zmu-btn__outline--blue zmu-btn--sm'
 	);
-	// @TODO click "Add Room"
+	// @TODO click "Add Room" programmatically instead of requiring it manually
 	if (x.length === 0) {
 		alert('(Zoomie) No assignable buttons!');
 		return false;
