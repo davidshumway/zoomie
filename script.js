@@ -248,8 +248,8 @@ function detachSettings() {
  * Attach the settings elements to the dialog box.
  * @param 
  */
-function attachSettings() {
-	console.log(logPrefix + "Entering attachSettings()")
+function attachZoomie() {
+	console.log(logPrefix + "Entering attachZoomie()")
 	
 	////////////////////////////////////////////////////////////////
 	// Dialog container
@@ -280,9 +280,8 @@ function attachSettings() {
 		z.innerHTML = // These are 50px tall. 12% + 26% + 60% = 98%
 	//		'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Ignore</div>'+
 	//		'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Co-host</div>'+
-			'<div class="ignoreLegend" style="width: 20% !important;overflow:hidden;">Participant</div>'+
-			'<div class="ignoreLegend" style="width: 20% !important;overflow:hidden;">Partners</div>'+
-			'<div class="ignoreLegend" style="width: 60% !important;overflow:hidden;">Settings</div>'+
+			'<div class="ignoreLegend" style="width: 30% !important;overflow:hidden;">Participant</div>'+
+			'<div class="ignoreLegend" style="width: 30% !important;overflow:hidden;">Partners</div>'+
 			'<br style="clear:both" />'; 
 	}
 		
@@ -321,76 +320,7 @@ function attachSettings() {
 		localStorage['zoomie-closeTime'] = parseInt(this.value);
 		console.log(logPrefix + 'Updated close time');
 	}
-	
-	//////////////////////////////////////////
-	// Round number
-	//////////////////////////////////////////
-	/*
-	z = document.createElement('div');
-	z.className = 'zoomieSeconds';
-	z.setAttribute('style', 'display:none;');
-	elements.ignoreContainer.appendChild(z);
-	elements.roundSelectDiv = z;
 
-	z = document.createElement('label');
-	z.innerText = 'Current round:  ';
-	z.style.cursor = 'pointer';
-	elements.roundNumLabel = z;
-	elements.roundSelectDiv.appendChild(z);
-	
-	// 
-	z = document.createElement('input');
-	z.type = 'number';
-	z.min = 1; // No negatives
-	z.max = currentMatches.length; // No negatives
-	z.size = 4;
-	z.className = 'zoomieSecondsInput';
-	//z.value = parseInt(localStorage['zoomie-roundNumber']); // parseInt for cleaning
-	elements.roundNumLabel.appendChild(z);
-	z.onchange = function() {
-		if (this.value < 1) this.value = 1;
-		//localStorage['zoomie-roundNumber'] = parseInt(this.value);
-		//highlightRoundNum(parseInt(this.value));
-		//~ console.logPrefix('(Zoomie) updated close time');
-	}
-
-	 */
-
-	// @TODO provide input for previous matches
-	/*
-	z = document.createElement('div');
-	a = document.createElement('label');
-	a.value = "matches to avoid (JSON)";
-	z = document.createElement('input');
-	z.type = 'text';
-	z.onchange = function() {
-		if (this.value !== "") {
-		  // json decode
-		  // populate matches to avoid array
-		}
-	}
-
-	z = document.createElement('div');
-	a = document.createElement('label');
-	a.value = "previous matches (JSON)";
-	z = document.createElement('input');
-	z.type = 'text';
-	z.onchange = function() {
-		if (this.value !== "") {
-		  // json decode
-		  // populate previous matches array
-			regenerateMatchesMap(this.value)
-		}
-	}
-
-	elements.ignoreContainer.appendChild(z);
-
-
-
-	 */
-
-	// @TODO provide display of all matches
-	// @TODO provide input for matches to avoid
 	
 	//////////////////////////////////////////
 	// Accept ignored users button
@@ -421,7 +351,7 @@ function attachSettings() {
 }
 
 /**
- * After user clicks "Breakout Rooms" button, adds "Zoomie Settings".
+ * After user clicks "Breakout Rooms" button, adds "Zoomie".
  */
 function attachBreakoutContainer() {
 	
@@ -466,7 +396,7 @@ function attachBreakoutContainer() {
 	// people into breakout rooms of size=2.
 	let z = document.createElement('button');
 	y[0].insertBefore(z, y[0].firstChild);
-	z.innerHTML = 'Zoomie Settings';
+	z.innerHTML = 'Zoomie';
 	z.onclick = showIgnoreUsersSelect;
 	z.className = 
 		'zmu-btn bo-bottom-btn zmu-btn--default zmu-btn__outline--blue';
@@ -868,7 +798,7 @@ function showIgnoreUsersSelect() {
 	
 	// Generate pairs if new run.
 	// currentMatches = makeRoundRobinPairings(assignableUsers);
-	let generated = makeMatches(assignableUsers)
+	generatedPairs = makeMatches(assignableUsers)
 	console.log(logPrefix + "currentMatches "+currentMatches.length)
 	
 	// If there are more pairs than current round #, then reset round #.
@@ -888,7 +818,7 @@ function showIgnoreUsersSelect() {
 				//~ }
 	
 	// Attach the elements
-	attachSettings(); // Create the elements.
+	attachZoomie(); // Create the elements.
 	elements.userIgnoreSelectTitle.className = 'zoomie-ignoreUsersTitle zoomie-show';
 	elements.ignoreContainer.className = 'zoomie-ignoreContainer zoomie-show';
 	elements.userIgnoreSelect.style.display = '';
@@ -1135,7 +1065,7 @@ function isCohost(username) {
 function makeMatches(availableParticipants) {
 	currentMatches = {}
 
-	while (availableParticipants.length > 2) {
+	while (availableParticipants.length >= 2) {
 		console.log(logPrefix + 'Remaining available participants to match', availableParticipants.length);
 		let second = 1
 
