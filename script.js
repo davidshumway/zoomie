@@ -42,6 +42,11 @@ let assignableUsers = [], // Assignable users
 		userIgnoreSelectAccept: null,
 		userIgnoreSelectTitle: null,
 		autoButton: null,
+
+		zoomieSettingsInput: null,
+		zoomieSettingsInputAccept: null,
+		zoomieSettingsInputTitle: null,
+		settingsAutoButton: null,
 	},
 	breakoutRoomHeight = 0,
 	generatedPairs = false,
@@ -114,6 +119,8 @@ function add_styles() {
 	// 60px + 10px + 10px = 80px
 	GM_addStyle('.zoomieSeconds {background-color: #efefef; border-bottom: 1px solid blue; cursor: pointer; width: 100%; height: 48px; padding: 6px;}');
 	GM_addStyle('.zoomieSecondsInput {cursor: pointer; width: 60px; zoom: 1.2; border-radius: 8px; padding-left: 4px; text-align: center;}');
+
+	GM_addStyle('.zoomieInput {cursor: pointer; text-align: center; width: 50%; height: 80%}');
 
 	// Overwrites to zoom styles
 
@@ -283,6 +290,85 @@ function attachZoomie() {
 	elements.userIgnoreSelectCancel = z;
 }
 
+function attachZoomieSettings() {
+	console.log(logPrefix + "Entering attachZoomieSettings()")
+
+	////////////////////////////////////////////////////////////////
+	// Dialog container
+	////////////////////////////////////////////////////////////////
+	let a = document.getElementById('boRoomMgmtWindow');
+
+	// Container for "-Auto-" button dialog
+	let z = document.createElement('div');
+	z.className = 'zoomie-ignoreContainer';
+	a.insertBefore(z, a.firstChild);
+	elements.zoomieSettingsContainer = z;
+
+	// Ignore users title bar
+	z = document.createElement('div');
+	z.className = 'zoomie-ignoreUsersTitle';
+	z.innerText = 'Zoomie Settings';
+	elements.zoomieSettingsContainer.appendChild(z);
+
+	//////////////////////////////////////////
+	// Zoomie settingsmain container
+	//////////////////////////////////////////
+	z = document.createElement('div');
+	z.setAttribute('style', 'width:100%;z-index:1002;display:none;background-color:#eee;overflow:auto;');
+	elements.zoomieSettingsContainer.appendChild(z);
+	elements.zoomieSettingsInputTitle = z;
+		z.innerHTML = // These are 50px tall. 12% + 26% + 60% = 98%
+	//		'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Ignore</div>'+
+	//		'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Co-host</div>'+
+			'<div class="ignoreLegend" style="width: 50% !important;overflow:hidden;">Avoid Matches</div>'+
+			'<div class="ignoreLegend" style="width: 50% !important;overflow:hidden;">Previous Matches</div>'+
+			'<br style="clear:both" />';
+
+	// Avoid matches div to contain
+	z = document.createElement('div');
+	z.setAttribute('style', 'width:100%;height:400px;z-index:1004;display:none;background-color:#eee;overflow:auto;border-bottom:1px solid blue;');
+	elements.zoomieSettingsContainer.appendChild(z);
+	elements.zoomieSettingsInput = z;
+
+	//
+	z = document.createElement('input');
+	z.type = 'text';
+	z.value = JSON.stringify(matchesToAvoid);
+	z.className = 'zoomieInput';
+	elements.zoomieSettingsInput.appendChild(z);
+	z.onchange = function() {
+		populateMatchesToAvoid(this.value)
+		console.log(logPrefix + 'Updated matches to avoid');
+	}
+
+	//
+	z = document.createElement('input');
+	z.type = 'text';
+	z.value = JSON.stringify(previousMatches); // No negatives
+	z.className = 'zoomieInput';
+	elements.zoomieSettingsInput.appendChild(z);
+	z.onchange = function() {
+		populateMatches(this.value)
+		console.log(logPrefix + 'Updated previous matches');
+	}
+
+	//////////////////////////////////////////
+	// Accept settings button
+	//////////////////////////////////////////
+	z = document.createElement('div');
+	z.setAttribute('style', 'width: 100%; text-align: center; padding: 10px 0; background-color: #eee; display:none; border-bottom: 1px solid blue;');
+	elements.zoomieSettingsContainer.appendChild(z);
+	elements.zoomieSettingButtonDiv = z;
+
+	z = document.createElement('button');
+	z.setAttribute('style', 'z-index:1002;');
+	z.className = 'btn btn-primary';
+	z.innerText = 'Okay';
+	z.onclick = closeZoomieSettings;
+	elements.zoomieSettingButtonDiv.appendChild(z);
+	elements.zoomieSettingsInputAccept = z;
+}
+
 /**
  * After user clicks "Breakout Rooms" button, adds "Zoomie".
  */
@@ -324,10 +410,30 @@ function attachBreakoutContainer() {
 		}
 	}
 
+	if (elements.settingsAutoButton) {
+		try {
+			elements.settingsAutoButton.parentNode.removeChild(elements.settingsAutoButton);
+			elements.settingsAutoButton = null;
+		} catch(e) {
+			console.log(logPrefix + 'Could not remove autoButton');
+		}
+	}
+
+	let z = document.createElement('button');
+	y[0].insertBefore(z, y[0].firstChild);
+	z.innerHTML = 'Zoomie Settings';
+	z.onclick = showZoomieSettings;
+	z.className =
+		'zmu-btn bo-bottom-btn zmu-btn--default zmu-btn__outline--blue';
+		// Changed Feb. 2021
+		//'zmu-btn zm-btn-legacy zmu-btn--default zmu-btn__outline--blue';
+	z.style.marginRight = '10px';
+	elements.settingsAutoButton = z;
+
 	// An "auto"-pair button that can be clicked any number
 	// of times, continuously randomly permutating the
 	// people into breakout rooms of size=2.
-	let z = document.createElement('button');
+	z = document.createElement('button');
 	y[0].insertBefore(z, y[0].firstChild);
 	z.innerHTML = 'Zoomie';
 	z.onclick = showIgnoreUsersSelect;
@@ -336,8 +442,7 @@ function attachBreakoutContainer() {
 		// Changed Feb. 2021
 		//'zmu-btn zm-btn-legacy zmu-btn--default zmu-btn__outline--blue';
 	z.style.marginRight = '10px';
-	elements.autoButton = z;
-
+ 	elements.autoButton = z;
 }
 
 /**
@@ -540,6 +645,20 @@ function addToRooms() {
 }
 
 /**
+ *
+ */
+function closeZoomieSettings() {
+	elements.zoomieSettingsContainer.parentNode.removeChild(elements.zoomieSettingsContainer);
+
+	// Show the default dialogs
+	try {
+		document.getElementsByClassName('window-content')[0].style.display = '';
+	} catch(e) {
+
+	}
+}
+
+/**
  * Show ignore users dialog box.
  */
 function showIgnoreUsersSelect() {
@@ -590,6 +709,37 @@ function showIgnoreUsersSelect() {
 
 	}
 }
+
+/**
+ * Show Zoomie settings.
+ */
+function showZoomieSettings() {
+	// Close any popup dialog boxes that are opened when user clicks
+	// any of the "Assign" buttons.
+	closeAssignPopups();
+
+	// Remove any users from rooms, then populate the users field.
+	resetPairings();
+
+	// Attach the elements
+	attachZoomieSettings(); // Create the elements.
+	elements.zoomieSettingsInputTitle.className = 'zoomie-ignoreUsersTitle zoomie-show';
+	elements.zoomieSettingsContainer.className = 'zoomie-ignoreContainer zoomie-show';
+	elements.zoomieSettingsInput.style.display = '';
+	elements.zoomieSettingsInputAccept.style.display = '';
+	elements.zoomieSettingButtonDiv.style.display = '';
+
+	// Users
+	// addUserSelect();
+
+	// Hide the background dialogs
+	try {
+		document.getElementsByClassName('window-content')[0].style.display = 'none';
+	} catch(e) {
+
+	}
+}
+
 
 /**
  * Closes all Assign button popups before running auto-assign.
