@@ -35,7 +35,7 @@ let assignableUsers = [], // Assignable users
 	registeredMatches = new Map(),
 	asterisksUsers = new Map(),
 	matchesToAvoid = {}, // based on username, which can change... FUN
-	cohosts = {},
+	cohosts = new Map(),
 	primaryCohost = '',
 	elements = {
 		userIgnoreSelect: null,
@@ -137,7 +137,7 @@ function add_styles() {
 // Then, set another interval to check when the boRoomMgmtWindow
 // disappears.
 window.setInterval(function() {
-	console.log(logPrefix + "Entering setInterval")
+	//console.log(logPrefix + "Entering setInterval")
 	// Breakout window popup
 	let a = document.getElementById('boRoomMgmtWindow');
 	if (a && !breakoutWindowOpen) {
@@ -150,7 +150,7 @@ window.setInterval(function() {
 		breakoutWindowOpen = false;
 	}
 
-	console.log(logPrefix + "Before Recreate button popup")
+	//console.log(logPrefix + "Before Recreate button popup")
 	// "Recreate" button popup
 	let b = document.getElementsByClassName('recreate-paper__footer');
 	if (b && b.length === 1 && !b[0].zoomie_mark) {
@@ -968,7 +968,7 @@ function populateMatchesToAvoid(blob) {
 }
 
 function isCohost(username) {
-	return cohosts[username]
+	return cohosts.get(username) !== undefined
 }
 
 function makeMatches(assignableUsers) {
@@ -1058,9 +1058,11 @@ function getAllAssignableUsers() {
 		return;
 	assignButtons[0].click();
 
+	console.log(logPrefix + " getAllAssignableUsers1")
 	let x = document.getElementsByClassName(
 		'zmu-data-selector-item__text bo-room-assign-list-scrollbar__item-text'
 	);
+	console.log(logPrefix + " getAllAssignableUsers2")
 	if (x.length === 0) {
 		console.log(logPrefix + " Found zero in the room list")
 		//alert('(Zoomie) No assignable users!');
@@ -1069,33 +1071,44 @@ function getAllAssignableUsers() {
 	}
 
 	// @TODO finish testing this
+	console.log(logPrefix + " getAllAssignableUsers3 "+x.length)
 	asterisksUsers.clear()
 	let y = [];
 	let lastCohost = "";
 	for (let i=0; i<x.length; i++) {
 		let username = x[i].innerText.trim()
+		console.log(logPrefix + " getAllAssignableUsers3.2 "+username)
 		let skip = username.includes("***")
 		if (skip) {
 			asterisksUsers.set(username, true)
 			continue
 		}
+		console.log(logPrefix + " getAllAssignableUsers3.3 ")
 		if (containsCohost(username) === true) {
-			cohosts.push(x[i].name)
+		console.log(logPrefix + " getAllAssignableUsers3.31")
+			cohosts.set(username, true)
+		console.log(logPrefix + " getAllAssignableUsers3.32")
 			if (lastCohost === "") {
-				lastCohost = x[i].name
+		console.log(logPrefix + " getAllAssignableUsers3.33")
+				lastCohost = username
 				continue
 			}
+		console.log(logPrefix + " getAllAssignableUsers3.34")
 		}
+		console.log(logPrefix + " getAllAssignableUsers3.4")
 
 		// Add an attribute for our purposes
 		y.push(username)
+		console.log(logPrefix + " getAllAssignableUsers3.5")
 	}
 	assignButtons[0].click(); // unclick
+	console.log(logPrefix + " getAllAssignableUsers4")
 
 	let shuffled = shuffle(y);
 	if (lastCohost !== "") {
 		shuffled.push(lastCohost)
 	}
+	console.log(logPrefix + " getAllAssignableUsers5")
 	return shuffled;
 }
 
