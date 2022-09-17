@@ -46,8 +46,6 @@ let assignableUsers = [], // Assignable users
 	breakoutRoomHeight = 0,
 	generatedPairs = false,
 	breakoutWindowOpen = false // Tracks breakout dialog state (open/closed)
-//	storage = new IDBDatabase(),
-//	storageName = 'bonoboConnectMatches'
 	;
 
 /**
@@ -57,54 +55,12 @@ function load() {
 	// Add css styles
 	add_styles()
 
-	/*
-+	// Let us open our database
-+	const DBOpenRequest = window.indexedDB.open(storageName);
-+
-+    // Register two event handlers to act on the database being opened successfully, or not
-+    DBOpenRequest.onerror = (event) => {
-+		// @TODO fuck... popup and ask to reload?
-+      // note.appendChild(createListItem('Error loading database.'));
-+    };
-+
-+	DBOpenRequest.onsuccess = (event) => {
-+		//note.appendChild(createListItem('Database initialised.'));
-+
-+		// Store the result of opening the database in the db variable. This is used a lot below
-+		storage = DBOpenRequest.result;
-+	};
-*/
 
-	// Zoomie history pairings. Not required as of now.
-	//if (!localStorage['zoomie-history']) {
-		// Create new entry. An empty dict.
-		//~ localStorage['zoomie-history'] = '{}';
-	//} else {
-		//~ var newMtg = confirm('"ZOOMIE": Would you like to load any pairings from the previous session?');
-		//~ if (newMtg) {
-			//~ // Yes. Load it.
-			//~ // E.g. user reloaded page.
-			//~ try {
-				//~ pairings = JSON.parse(localStorage['zoomie-history']);
-				//~ tmpPairings = JSON.parse(localStorage['zoomie-history']);
-			//~ } catch (e) {
-				//~ alert('Could not parse last session:',e.message);
-			//~ }
-		//~ } else {
-			//~ // No. Don't load it.
-			//~ // Reset pairings object in storage.
-			//~ localStorage['zoomie-history'] = '{}';
-		//~ }
-	//}
 	// Saved - time to close
 	// Saved setting for auto-close time
 	if (!localStorage['zoomie-closeTime']) {
 		localStorage['zoomie-closeTime'] = 60;
 	}
-	// Saved - round number
-	//if (!localStorage['zoomie-roundNumber']) {
-	//	localStorage['zoomie-roundNumber'] = 1;
-	//}
 
 	// If less than 2 seconds, then zoom.us overwrites getBreakoutButton().
 	//setTimeout(getBreakoutButton, 2000);
@@ -119,19 +75,6 @@ function updateStorage() {
 
 function loadStorage() {
 	// load from localStorage
-
-	const objectStore = storage.transaction(storageName).objectStore(storageName);
-
-
-    objectStore.openCursor().onsuccess = (event) => {
-		const cursor = event.target.result;
-		// Check if there are no (more) cursor items to iterate through
-		if (!cursor) {
-			// No more items to iterate through, we quit.
-			note.appendChild(createListItem('Entries all displayed.'));
-			return;
-		}
-	};
 
 }
 
@@ -181,13 +124,6 @@ function add_styles() {
 
 	GM_addStyle('#boRoomMgmtWindow {width: 98% !important; position: fixed !important; margin-left: 1%;}');
 }
-
-//~ /**
- //~ * Wait for "Breakout Rooms" button to appear, then attach an event to it.
- //~ */
-//~ function getBreakoutButton() {
-	//~ //
-//~ }
 
 // Set an interval to watch for boRoomMgmtWindow element to appear.
 // Once it appears, then add the Zoomie button.
@@ -246,7 +182,6 @@ function detachSettings() {
 
 /**
  * Attach the settings elements to the dialog box.
- * @param
  */
 function attachZoomie() {
 	console.log(logPrefix + "Entering attachZoomie()")
@@ -277,9 +212,7 @@ function attachZoomie() {
 	elements.ignoreContainer.appendChild(z);
 	elements.userIgnoreSelect = z;
 	if (assignableUsers.length) {
-		z.innerHTML = // These are 50px tall. 12% + 26% + 60% = 98%
-	//		'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Ignore</div>'+
-	//		'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Co-host</div>'+
+		z.innerHTML =
 			'<div class="ignoreLegend" style="width: 45% !important;overflow:hidden;">Participant</div>'+
 			'<div class="ignoreLegend" style="width: 45% !important;overflow:hidden;">Partners</div>'+
 			'<br style="clear:both" />';
@@ -428,10 +361,7 @@ function attachOpenAllRooms() {
 				return true;
 			}
 		}
-	}// else {
-	//	console.logPrefix('(ZOOMIE) Missing "Open all rooms" button!');
-	//	setTimeout(attachOpenAllRooms, 1000);
-	//}
+	}
 	return false;
 }
 /**
@@ -493,7 +423,6 @@ function updatePairingsFinal() {
  * Add back the -Auto- button.
  */
 function closeAllRooms() {
-	// auto button
 	attachBreakoutContainer();
 }
 
@@ -501,8 +430,6 @@ function closeAllRooms() {
  * Add checkboxes and radios to ignore or make users the odd-number user.
  */
 function addUserSelect() {
-	// replace with avoid matches input
-
 	let div = elements.userIgnoreSelectList;
 	div.innerHTML = '';
 
@@ -540,81 +467,6 @@ function addUserSelect() {
 }
 
 /**
- * @param round {integer} Round number to highlight.
-function highlightRoundNum(round) {
-	let x = document.getElementsByClassName('roundnums');
-	for (let i=0; i<x.length; i++) {
-		if (x[i].roundNum === round) {
-			x[i].style.fontWeight = 'bold';
-		} else {
-			x[i].style.fontWeight = 'normal';
-		}
-	}
-}
-*/
-
-/**
- *
- * https://stackoverflow.com/questions/6648512/
- * 		scheduling-algorithm-for-a-round-robin-tournament
- *
- * 	@TODO this doesn't work my use case... copy over golang code
-function makeRoundRobinPairings(players) {
-  let p = JSON.parse(JSON.stringify(players));
-
-  // Remove ignores.
-  let newp = [];
-  let cohost = null;
-  for (let i in p) {
-	  if (!ignoredUsers[p[i].name]) {
-		  newp.push(p[i].name);
-	  }
-  }
-
-  if (newp.length % 2 === 1) {
-    // If co-host
-    if (primaryCohost)
-		newp.push(primaryCohost);
-	else
-		newp.push(null);
-  }
-  p = JSON.parse(JSON.stringify(newp));
-
-  ////////////////////////////////////////////
-  // TESTER
-  // let p = ['a', 'b', 'c', 'd', 'e', null];
-  ////////////////////////////////////////////
-
-  let playerCount = p.length;
-  let rounds = playerCount - 1;
-  let half = playerCount / 2;
-  let tournamentPairings = [];
-  let playerIndexes = p.map((_, i) => i); //1,2,0
-  playerIndexes.shift()
-
-  for (let round = 0; round < rounds; round++) {
-    let roundPairings = [];
-    let newPlayerIndexes = [0].concat(playerIndexes);
-    let firstHalf = newPlayerIndexes.slice(0, half);
-    let secondHalf = newPlayerIndexes.slice(half, playerCount).reverse();
-
-    for (let i = 0; i < firstHalf.length; i++) {
-      roundPairings.push({
-        p1: p[firstHalf[i]],
-        p2: p[secondHalf[i]],
-      });
-    }
-    // rotating the array
-    playerIndexes.push(playerIndexes.shift());
-    tournamentPairings.push(roundPairings);
-  }
-
-  return tournamentPairings;
-}
-
-*/
-
-/**
  * Hide & cancel
  */
 function cancelIgnoreUsersSelect() {
@@ -626,6 +478,7 @@ function cancelIgnoreUsersSelect() {
 
 	}
 }
+
 /**
  * Hide ignore users dialog box and run the pairing program.
  */
@@ -715,22 +568,6 @@ function showIgnoreUsersSelect() {
 	// currentMatches = makeRoundRobinPairings(assignableUsers);
 	generatedPairs = makeMatches(assignableUsers)
 	console.log(logPrefix + "currentMatches "+currentMatches.length)
-
-	// If there are more pairs than current round #, then reset round #.
-	// This would happen when there's a new meeting and there are no
-	// users joined yet and the round number is still here from the
-	// last meeting.
-	//if (parseInt(localStorage['zoomie-roundNumber']) > generatedPairs.length) {
-	//	localStorage['zoomie-roundNumber'] = 1;
-	//}
-
-	// ALWAYS GENERATE...
-				//~ if (!generatedPairs) {
-					//~ // new
-					//~ generatedPairs = makeRoundRobinPairings(assignableUsers);
-					//~ console.logPrefix('assignableUsers', assignableUsers);
-					//~ console.logPrefix('generatedPairs', generatedPairs);
-				//~ }
 
 	// Attach the elements
 	attachZoomie(); // Create the elements.
@@ -1081,6 +918,7 @@ function getAllAssignableUsers() {
 		return false;
 	}
 
+	// @TODO finish testing this
 	asterisksUsers.clear()
 	let y = [];
 	let lastCohost = "";
