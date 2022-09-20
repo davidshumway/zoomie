@@ -80,17 +80,33 @@ function updateStorage() {
 	// put updates in localStorage
 
 	console.log(logPrefix+" entering updateStorage")
+	let other = localStorage
 	let storage = Window.localStorage
-	storage.setItem(matchesToAvoidKey, JSON.stringify(matchesToAvoid))
-	storage.setItem(previousMatchesKey, JSON.stringify(previousMatches))
-	storage.setItem(previousMatchesKey, JSON.stringify(previousMatches))
+	console.log(logPrefix+"updateStorage0"+JSON.stringify(matchesToAvoid))
+	other.setItem(matchesToAvoidKey, JSON.stringify(matchesToAvoid))
+	console.log(logPrefix+"updateStorage1"+JSON.stringify(previousMatches))
+	other.setItem(previousMatchesKey, JSON.stringify(previousMatches))
+	console.log(logPrefix+"updateStorage2")
 }
 
 function loadStorage() {
 	console.log(logPrefix+" entering loadStorage")
-	let storage = Window.localStorage
-	populateMatchesToAvoid(storage.getItem(matchesToAvoidKey))
-	populateMatches(storage.getItem(previousMatchesKey))
+	let other = localStorage
+	let storage = window.localStorage
+	console.log(logPrefix+" loadStorage0 ")
+	let value = other.getItem(matchesToAvoidKey)
+	let str = JSON.stringify(value)
+	if (str !== "null") {
+		populateMatchesToAvoid(value)
+	}
+	console.log(logPrefix+" loadStorage1")
+	value = other.getItem(previousMatchesKey)
+	str = JSON.stringify(value)
+	if (str !== "null") {
+		console.log(logPrefix+JSON.stringify(value))
+		populateMatches(value)
+	}
+	console.log(logPrefix+" loadStorage2")
 }
 
 /**
@@ -130,7 +146,7 @@ function add_styles() {
 	GM_addStyle('.zoomieSeconds {background-color: #efefef; border-bottom: 1px solid blue; cursor: pointer; width: 100%; height: 48px; padding: 6px;}');
 	GM_addStyle('.zoomieSecondsInput {cursor: pointer; width: 60px; zoom: 1.2; border-radius: 8px; padding-left: 4px; text-align: center;}');
 
-	GM_addStyle('.zoomieInput {cursor: pointer; text-align: center; width: 50%; height: 80%}');
+	GM_addStyle('.zoomieInput {cursor: pointer; width: 50%; height: 80%; word-break: break-all}');
 
 	// Overwrites to zoom styles
 
@@ -342,8 +358,8 @@ function attachZoomieSettings() {
 
 	//
 	z = document.createElement('input');
-	z.type = 'text';
-	z.value = JSON.stringify(matchesToAvoid);
+	z.type = 'textarea';
+	z.value = JSON.stringify(matchesToAvoid, null, 2);
 	z.className = 'zoomieInput';
 	elements.zoomieSettingsInput.appendChild(z);
 	z.onchange = function() {
@@ -354,9 +370,9 @@ function attachZoomieSettings() {
 
 	//
 	z = document.createElement('input');
-	z.type = 'text';
+	z.type = 'textarea';
 	console.log(logPrefix+" putting value into input "+JSON.stringify(previousMatches))
-	z.value = JSON.stringify(previousMatches); // No negatives
+	z.value = JSON.stringify(previousMatches, null, 2);
 	z.className = 'zoomieInput';
 	elements.zoomieSettingsInput.appendChild(z);
 	z.onchange = function() {
@@ -565,7 +581,7 @@ function addUserSelect() {
 	// All users loop
 	for (let i in currentMatches) {
 		let pnum = parseInt(i)+1; // Participant number. Start at 1, not 0.
-		let match = currentMatches[i].Participants
+		let matches = currentMatches[i].Participants
 		let z = document.createElement('div');
 		z.setAttribute('style', 'width:100%;');
 		z.className = 'ignoreList' + (i % 2 === 0 ? 'Odd' : 'Even');
@@ -579,12 +595,12 @@ function addUserSelect() {
 
 		let x = document.createElement('span');
 		x.setAttribute('style', 'width: 25%;height:24px;border:1px solid blue;overflow:hidden;display:inline-block;text-align:center;');
-		x.innerText = match[0];
+		x.innerText = matches[0].DisplayName;
 		z.appendChild(x);
 
 		let w = document.createElement('span');
 		w.setAttribute('style', 'width: 25%;height:24px;border:1px solid blue;overflow:hidden;display:inline-block;text-align:center;');
-		w.innerText = match[1];
+		w.innerText = matches[1].DisplayName;
 		z.appendChild(w);
 	}
 }
@@ -643,7 +659,7 @@ function addToRooms() {
 	// Loop to add to rooms
 	for (let i in currentMatches) {
 		let p = currentMatches[i].Participants;
-		if (p[0] === null || p[1] === null) continue; // Leave out solos
+		if (p[0].DisplayName === null || p[1].DisplayName === null) continue; // Leave out solos
 		// Made it past nulls. Open "Assign" dialog box.
 		assignButtons[roomNo].click();
 		// Loops through checkboxes.
@@ -651,8 +667,8 @@ function addToRooms() {
 			'zmu-data-selector-item__text'
 		);
 		for (let k=0; k<x.length; k++) {
-			if (x[k].innerText === p[0]
-			 || x[k].innerText === p[1]) {
+			if (x[k].innerText === p[0].DisplayName
+			 || x[k].innerText === p[1].DisplayName) {
 				x[k].click();
 			}
 		}
@@ -797,35 +813,39 @@ function resetPairings() {
 	}
 }
 
-function duplicateOrAvoid(first, second) {
-	if (first === second) {
+function duplicateOrAvoid(firstUniqueName, secondUniqueName) {
+	if (firstUniqueName === secondUniqueName) {
 		console.log(logPrefix+"GAHHHHH");
 		return {duplicate: false, avoid: true};
 	}
-	if (first === "") {
+	if (firstUniqueName === "") {
 		console.log(logPrefix+"GAHHHHH");
 		return {duplicate: false, avoid: true};
 	}
-	if (second === "") {
+	if (secondUniqueName === "") {
 		console.log(logPrefix+"GAHHHHH");
 		return {duplicate: false, avoid: true};
 	}
 
-	let one = registeredMatches.has(first+second)
-	let two = registeredMatches.has(second+first)
+	let one = registeredMatches.has(firstUniqueName+secondUniqueName)
+	let two = registeredMatches.has(secondUniqueName+firstUniqueName)
 	let duplicate = one && two
 
 
-	first = first.toLowerCase()
-	second = second.toLowerCase()
+	firstUniqueName = firstUniqueName.toLowerCase()
+	secondUniqueName = secondUniqueName.toLowerCase()
 	let avoid = false
+	console.log(logPrefix+"before avoid loop")
 	for (let key in matchesToAvoid) {
-		if (first.includes(key)) {
-			if (second.includes(matchesToAvoid[key].toLowerCase())) {
+		let firstAvoidLower = matchesToAvoid[key][0].toLowerCase()
+		let secondAvoidLower = matchesToAvoid[key][1].toLowerCase()
+		console.log(logPrefix+"inside avoid loop "+key+firstAvoidLower+secondAvoidLower)
+		if (firstUniqueName.includes(firstAvoidLower)) {
+			if (secondUniqueName.includes(secondAvoidLower)) {
 				avoid = true
 			}
-		} else if (second.includes(key)) {
-			if (first.includes(matchesToAvoid[key].toLowerCase())) {
+		} else if (secondUniqueName.includes(firstAvoidLower)) {
+			if (firstUniqueName.includes(secondAvoidLower)) {
 				avoid = true
 			}
 		}
@@ -838,48 +858,55 @@ function duplicateOrAvoid(first, second) {
 }
 
 // if no non duplicate found by the end, start over at the beginning
-function replaceWithAnyNonduplicate(matches, username) {
+function replaceWithAnyNonduplicate(matches, participants) {
+	let participant = {DisplayName: participants[0], UniqueName: uniqueNameFromDisplayName(participants[0])}
 	for (let i = 0; i < matches.length; i++) {
 		let match = matches[i]
-		let result = duplicateOrAvoid(username, match.Participants[1])
+		let result = duplicateOrAvoid(participant.UniqueName, match.Participants[1].UniqueName)
 		let dup = result.duplicate
 		let avoid = result.avoid
 
 		if (!dup && !avoid) {
 			if (!match.Duplicate) {
-				unregisterMatch(match.Participants[0], match.Participants[1])
+				console.log(logPrefix + "Unmatching "+match.Participants[0].DisplayName+" and "+match.Participants[1].DisplayName);
+				unregisterMatch(match.Participants[0].UniqueName, match.Participants[1].UniqueName)
 			}
-			registerMatch(username, match.Participants[1])
+			console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[1].DisplayName);
+			registerMatch(participant.UniqueName, match.Participants[1].UniqueName)
 			matches[i] = {
-				Participants: [username, match.Participants[1]],
+				Participants: [participant, match.Participants[1]],
 				Duplicate:    dup}
+			participants[0] = match.Participants[0].DisplayName
 			return true
 		}
 
-		result = duplicateOrAvoid(username, match.Participants[0])
+		result = duplicateOrAvoid(participant.UniqueName, match.Participants[0].UniqueName)
 		dup = result.duplicate
 		avoid = result.avoid
 		if (!dup && !avoid) {
 			if (!match.Duplicate) {
-				unregisterMatch(match.Participants[1], match.Participants[0])
+				console.log(logPrefix + "Unmatching "+match.Participants[0].DisplayName+" and "+match.Participants[1].DisplayName);
+				unregisterMatch(match.Participants[1].UniqueName, match.Participants[0].UniqueName)
 			}
-			registerMatch(username, match.Participants[0])
+			console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[0].DisplayName);
+			registerMatch(participant.UniqueName, match.Participants[0].UniqueName)
 			matches[i] = {
-				Participants: [username, match.Participants[0]],
+				Participants: [participant, match.Participants[0]],
 					Duplicate:    dup}
+			participants[0] = match.Participants[1].DisplayName
 			return true
 		}
 	}
 	return false
 }
 
-function replaceWithAnyCohost(matches, username) {
+function replaceWithAnyCohost(matches, participant) {
 	let lastFoundCohost = -1
 	for (let i = 0; i < matches.length; i++) {
 		let match = matches[i]
 
 		if (isCohost(match.Participants[0])) {
-			let result = duplicateOrAvoid(username, match.Participants[1])
+			let result = duplicateOrAvoid(participant.UniqueName, match.Participants[1].UniqueName)
 			let dup = result.duplicate
 			let avoid = result.avoid
 
@@ -888,18 +915,20 @@ function replaceWithAnyCohost(matches, username) {
 			}
 			if (!dup && !avoid) {
 				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
+					console.log(logPrefix + "Unmatching "+match.Participants[0].DisplayName+" and "+match.Participants[1].DisplayName);
+					unregisterMatch(match.Participants[0].UniqueName, match.Participants[1].UniqueName)
 				}
-				registerMatch(username, match.Participants[1])
+				console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[1].DisplayName);
+				registerMatch(participant.UniqueName, match.Participants[1].UniqueName)
 
 				matches[i] = {
-					Participants: [username, match.Participants[1]],
+					Participants: [participant, match.Participants[1]],
 						Duplicate:    dup}
 				return true
 			}
 		}
 		if (isCohost(match.Participants[1])) {
-			let result = duplicateOrAvoid(username, match.Participants[0])
+			let result = duplicateOrAvoid(participant.UniqueName, match.Participants[0].UniqueName)
 			let dup = result.duplicate
 			let avoid = result.avoid
 
@@ -908,12 +937,14 @@ function replaceWithAnyCohost(matches, username) {
 			}
 			if (!dup && !avoid) {
 				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
+					console.log(logPrefix + "Unmatching "+match.Participants[0].DisplayName+" and "+match.Participants[1].DisplayName);
+					unregisterMatch(match.Participants[0].UniqueName, match.Participants[1].UniqueName)
 				}
-				registerMatch(username, match.Participants[0])
+				console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[0].DisplayName);
+				registerMatch(participant.UniqueName, match.Participants[0].UniqueName)
 
 				matches[i] = {
-					Participants: [username, match.Participants[0]],
+					Participants: [participant, match.Participants[0]],
 						Duplicate:    dup}
 				return true
 			}
@@ -923,35 +954,39 @@ function replaceWithAnyCohost(matches, username) {
 	if (lastFoundCohost !== -1) {
 		let match = matches[lastFoundCohost]
 		if (isCohost(match.Participants[0])) {
-			let result = duplicateOrAvoid(username, match.Participants[1])
+			let result = duplicateOrAvoid(participant.UniqueName, match.Participants[1].UniqueName)
 			let dup = result.duplicate
 			let avoid = result.avoid
 
 			if (!avoid) {
 				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
+					console.log(logPrefix + "Unmatching "+match.Participants[0].DisplayName+" and "+match.Participants[1].DisplayName);
+					unregisterMatch(match.Participants[0].UniqueName, match.Participants[1].UniqueName)
 				}
-				registerMatch(username, match.Participants[0])
+				console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[1].DisplayName);
+				registerMatch(participant.UniqueName, match.Participants[1].UniqueName)
 
 				matches[lastFoundCohost] = {
-					Participants: [username, match.Participants[1]],
+					Participants: [participant, match.Participants[1]],
 						Duplicate:    dup}
 				return true
 			}
 		}
 		if (isCohost(match.Participants[1])) {
-			let result = duplicateOrAvoid(username, match.Participants[0])
+			let result = duplicateOrAvoid(participant.UniqueName, match.Participants[0].UniqueName)
 			let dup = result.duplicate
 			let avoid = result.avoid
 
 			if (!avoid) {
 				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
+					console.log(logPrefix + "Unmatching "+match.Participants[0].DisplayName+" and "+match.Participants[1].DisplayName);
+					unregisterMatch(match.Participants[0].UniqueName, match.Participants[1].UniqueName)
 				}
-				registerMatch(username, match.Participants[0])
+				console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[0].DisplayName);
+				registerMatch(participant.UniqueName, match.Participants[0].UniqueName)
 
 				matches[lastFoundCohost] = {
-					Participants: [username, match.Participants[1]],
+					Participants: [participant, match.Participants[1]],
 						Duplicate:    dup}
 				return true
 			}
@@ -960,33 +995,51 @@ function replaceWithAnyCohost(matches, username) {
 	return false
 }
 
-function registerMatch(first, second) {
-	registeredMatches.set(first+second, true)
-	registeredMatches.set(second+first, true)
+function registerMatch(firstUniqueName, secondUniqueName) {
+	registeredMatches.set(firstUniqueName+secondUniqueName, true)
+	registeredMatches.set(secondUniqueName+firstUniqueName, true)
 }
 
-function unregisterMatch(first, second) {
-	registeredMatches.delete(first+second)
-	registeredMatches.delete(second+first)
+function unregisterMatch(firstUniqueName, secondUniqueName) {
+	registeredMatches.delete(firstUniqueName+secondUniqueName)
+	registeredMatches.delete(secondUniqueName+firstUniqueName)
 }
 
 function populateMatches(blob) {
-	console.log(logPrefix+"populateMatches0")
-	previousMatches = JSON.parse(blob)
-	console.log(logPrefix+"populateMatches1 "+previousMatches.length)
+	previousMatches = []
+	if (blob == "" || blob == null || blob == "null") {
+		console.log(logPrefix+"populateMatches0"+blob)
+		blob = "{}"
+	}
+	console.log(logPrefix+"populateMatches1"+blob)
+	try {
+		previousMatches = JSON.parse(blob)
+	} catch {
+		previousMatches = []
+	}
+	console.log(logPrefix+"populateMatches2 "+previousMatches.length)
 	registeredMatches.clear()
 
 	for (let i = 0; i < previousMatches.length; i++) {
 		// to registeredMatches
-		registerMatch(i.Participants[0], i.Participants[1])
+		registerMatch(previousMatches[i].Participants[0].UniqueName, previousMatches[i].Participants[1].UniqueName)
 	}
 }
 
 function populateMatchesToAvoid(blob) {
-	// format [][]string {[['rose', 'larry'], ['a', 'b']]}
-	console.log(logPrefix+"populateMatchesToAvoid0")
-	matchesToAvoid = JSON.parse(blob)
-	console.log(logPrefix+"populateMatchesToAvoid1 "+matchesToAvoid.length)
+	matchesToAvoid = []
+	if (blob == "" || blob == null || blob == "null") {
+		console.log(logPrefix+"populateMatchesToAvoid0"+blob)
+		blob = "{}"
+	}
+	// format [][]string [['rose', 'larry'], ['a', 'b']]
+	console.log(logPrefix+"populateMatchesToAvoid1"+blob)
+	try {
+		matchesToAvoid = JSON.parse(blob)
+	} catch {
+		matchesToAvoid = []
+	}
+	console.log(logPrefix+"populateMatchesToAvoid2 "+matchesToAvoid.length)
 }
 
 function isCohost(username) {
@@ -1001,6 +1054,7 @@ function makeMatches(assignableUsers) {
 		console.log(logPrefix + 'Remaining available participants to match '+ availableParticipants.length);
 		let second = 1
 
+		// shouldn't be necessary anymore
 		if (availableParticipants[0] === "") {
   			availableParticipants.splice(0, 1);
 			  continue
@@ -1009,7 +1063,10 @@ function makeMatches(assignableUsers) {
   			availableParticipants.splice(second, 1);
 			  continue
 		}
-		let result = duplicateOrAvoid(availableParticipants[0], availableParticipants[second])
+		let firstParticipant = {DisplayName: availableParticipants[0], UniqueName: uniqueNameFromDisplayName(availableParticipants[0])}
+		let secondParticipant = {DisplayName: availableParticipants[second], UniqueName: uniqueNameFromDisplayName(availableParticipants[second])}
+
+		let result = duplicateOrAvoid(firstParticipant.UniqueName, secondParticipant.UniqueName)
 		let dup = result.duplicate
 		let avoid = result.avoid
 
@@ -1019,7 +1076,8 @@ function makeMatches(assignableUsers) {
 		while ((dup || avoid) && (second <= availableParticipants.length-2)) { // -1 for index numbering and -1 for line 140
 			console.log(logPrefix + "trying to fix")
 			second++
-			result = duplicateOrAvoid(availableParticipants[0], availableParticipants[second])
+			secondParticipant = {DisplayName: availableParticipants[second], UniqueName: uniqueNameFromDisplayName(availableParticipants[second])}
+			result = duplicateOrAvoid(firstParticipant.UniqueName, secondParticipant.UniqueName)
 			dup = result.duplicate
 			avoid = result.avoid
 		}
@@ -1027,36 +1085,39 @@ function makeMatches(assignableUsers) {
 		let avoided = true
 		if (dup || avoid) {
 			// if no non duplicate found by the end, start over at the beginning
-			let ok = replaceWithAnyNonduplicate(currentMatches, availableParticipants[0])
+			let ok = replaceWithAnyNonduplicate(currentMatches, availableParticipants)
 			if (!ok) {
 				avoided = false
 				console.log(logPrefix + "Unable to avoid duplicate!")
 			} else {
 				dup = false
 				avoid = false
+				continue
 			}
 		}
 
-		if ((!dup && !avoid) || ((dup || avoid) && !avoided)) {
-			registerMatch(availableParticipants[0], availableParticipants[second]);
+		if ((!dup && !avoid) || (dup && !avoided)) {
+			registerMatch(firstParticipant.UniqueName, secondParticipant.UniqueName);
 			console.log(logPrefix + "Matching "+availableParticipants[0]+" and "+availableParticipants[second]+" ("+ second+")");
 			let m = {
 				Duplicate: dup,
-				Participants: [availableParticipants[0], availableParticipants[second]],
+				Participants: [firstParticipant, secondParticipant]
 			};
 			currentMatches.push(m);
   			availableParticipants.splice(second, 1);
   			availableParticipants.splice(0, 1);
 		} else {
-			console.log(logPrefix + "FUCK!")
+			console.log(logPrefix + "Skipping participant because of avoid!")
+			availableParticipants.splice(0, 1);
 		}
 
 		if (availableParticipants.length === 1) {
-			if (!isCohost(availableParticipants[0])) {
+			firstParticipant = {DisplayName: availableParticipants[0], UniqueName: uniqueNameFromDisplayName(availableParticipants[0])}
+			if (!isCohost(firstParticipant.DisplayName)) {
 				console.log(logPrefix + "BAD! odd participant left out")
 				// switch odd participant with any cohost
 
-				let ok = replaceWithAnyCohost(currentMatches, availableParticipants[0])
+				let ok = replaceWithAnyCohost(currentMatches, availableParticipants)
 				if (!ok) {
 					console.log(logPrefix + "Well this is awkward... couldn't find a cohost to switch with the odd participant")
 				}
@@ -1067,6 +1128,61 @@ function makeMatches(assignableUsers) {
 	return true
 }
 
+function uniqueNameFromDisplayName(displayName) {
+	let parts = displayName.split(" ")
+	let firstIndex = 0
+	let secondIndex = 1
+
+
+	for (let i = 0; i < parts.length; i++) {
+		let part = parts[i]
+
+		if (isPronoun(part) || isColor(part)) {
+			if (i === 0) {
+				firstIndex++
+				secondIndex++
+				continue
+			}
+			return parts.slice(firstIndex, secondIndex-1).join(" ").trim()
+		}
+		secondIndex++
+	}
+	return parts.slice(firstIndex, secondIndex).join(" ").trim()
+}
+
+function isColor(part) {
+	let lower = part.toLowerCase().trim()
+	switch (lower) {
+		case "r":
+		case "y":
+		case "g":
+			return true
+		default:
+			return false
+	}
+}
+
+function isPronoun(part) {
+	let lower = part.toLowerCase().trim()
+	if (lower.includes("/")) {
+		return true
+	}
+	if (lower.includes("(") || lower.includes(")")) {
+		return true
+	}
+	switch (lower) {
+		case "he":
+		case "him":
+		case "she":
+		case "her":
+		case "they":
+		case "them":
+			return true
+		default:
+			return false
+	}
+
+}
 
 /**
  *
