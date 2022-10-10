@@ -29,7 +29,6 @@
 let logPrefix = 'Zoomie extension::';
 let assignableUsers = [], // Assignable users
 	assignButtons = [], // Assign buttons
-	userDict = {}, // Always updates to match assignableUsers. {'name': {'name': <str>, 'index': <#>}}
 	currentMatches = [],
 	previousMatches = [],
 	previousMatchesKey = "previousMatches",
@@ -38,7 +37,6 @@ let assignableUsers = [], // Assignable users
 	matchesToAvoid = [], // based on username, which can change... FUN
 	matchesToAvoidKey = "matchesToAvoid",
 	cohosts = new Map(),
-	primaryCohost = '',
 	elements = {
 		userIgnoreSelect: null,
 		userIgnoreSelectAccept: null,
@@ -75,32 +73,22 @@ function load() {
 }
 
 function updateStorage() {
-	// append current matches to previous matches
-	// previousMatches.stringify()
-	// put updates in localStorage
-
-	console.log(logPrefix+" entering updateStorage")
-	let other = localStorage
-	let storage = Window.localStorage
 	console.log(logPrefix+"updateStorage0"+JSON.stringify(matchesToAvoid))
-	other.setItem(matchesToAvoidKey, JSON.stringify(matchesToAvoid))
+	localStorage.setItem(matchesToAvoidKey, JSON.stringify(matchesToAvoid))
 	console.log(logPrefix+"updateStorage1"+JSON.stringify(previousMatches))
-	other.setItem(previousMatchesKey, JSON.stringify(previousMatches))
+	localStorage.setItem(previousMatchesKey, JSON.stringify(previousMatches))
 	console.log(logPrefix+"updateStorage2")
 }
 
 function loadStorage() {
-	console.log(logPrefix+" entering loadStorage")
-	let other = localStorage
-	let storage = window.localStorage
 	console.log(logPrefix+" loadStorage0 ")
-	let value = other.getItem(matchesToAvoidKey)
+	let value = localStorage.getItem(matchesToAvoidKey)
 	let str = JSON.stringify(value)
 	if (str !== "null") {
 		populateMatchesToAvoid(value)
 	}
 	console.log(logPrefix+" loadStorage1")
-	value = other.getItem(previousMatchesKey)
+	value = localStorage.getItem(previousMatchesKey)
 	str = JSON.stringify(value)
 	if (str !== "null") {
 		console.log(logPrefix+JSON.stringify(value))
@@ -163,7 +151,6 @@ function add_styles() {
 // Then, set another interval to check when the boRoomMgmtWindow
 // disappears.
 window.setInterval(function() {
-	//console.log(logPrefix + "Entering setInterval")
 	// Breakout window popup
 	let a = document.getElementById('boRoomMgmtWindow');
 	if (a && !breakoutWindowOpen) {
@@ -176,7 +163,6 @@ window.setInterval(function() {
 		breakoutWindowOpen = false;
 	}
 
-	//console.log(logPrefix + "Before Recreate button popup")
 	// "Recreate" button popup
 	let b = document.getElementsByClassName('recreate-paper__footer');
 	if (b && b.length === 1 && !b[0].zoomie_mark) {
@@ -274,7 +260,7 @@ function attachZoomie() {
 	elements.autoCloseLabel = z;
 	elements.autoCloseDiv.appendChild(z);
 
-	//
+	// @TODO deprecate this setting
 	z = document.createElement('input');
 	z.type = 'number';
 	z.min = 0; // No negatives
@@ -337,15 +323,13 @@ function attachZoomieSettings() {
 	elements.zoomieSettingsContainer.appendChild(z);
 
 	//////////////////////////////////////////
-	// Zoomie settingsmain container
+	// Zoomie settings main container
 	//////////////////////////////////////////
 	z = document.createElement('div');
 	z.setAttribute('style', 'width:100%;z-index:1002;display:none;background-color:#eee;overflow:auto;');
 	elements.zoomieSettingsContainer.appendChild(z);
 	elements.zoomieSettingsInputTitle = z;
-		z.innerHTML = // These are 50px tall. 12% + 26% + 60% = 98%
-	//		'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Ignore</div>'+
-	//		'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Co-host</div>'+
+		z.innerHTML =
 			'<div class="ignoreLegend" style="width: 50% !important;overflow:hidden;">Avoid Matches</div>'+
 			'<div class="ignoreLegend" style="width: 50% !important;overflow:hidden;">Previous Matches</div>'+
 			'<br style="clear:both" />';
@@ -714,9 +698,6 @@ function showIgnoreUsersSelect() {
 		//return;
 	}
 
-	// Update makeUserDict
-	makeUserDict();
-
 	// Generate pairs if new run.
 	// currentMatches = makeRoundRobinPairings(assignableUsers);
 	generatedPairs = makeMatches(assignableUsers)
@@ -826,6 +807,8 @@ function duplicateOrAvoid(firstUniqueName, secondUniqueName) {
 		console.log(logPrefix+"GAHHHHH");
 		return {duplicate: false, avoid: true};
 	}
+
+	// @TODO do not match cohosts
 
 	let one = registeredMatches.has(firstUniqueName+secondUniqueName)
 	let two = registeredMatches.has(secondUniqueName+firstUniqueName)
@@ -1009,7 +992,7 @@ function populateMatches(blob) {
 	previousMatches = []
 	if (blob == "" || blob == null || blob == "null") {
 		console.log(logPrefix+"populateMatches0"+blob)
-		blob = "{}"
+		blob = "[]"
 	}
 	console.log(logPrefix+"populateMatches1"+blob)
 	try {
@@ -1030,9 +1013,9 @@ function populateMatchesToAvoid(blob) {
 	matchesToAvoid = []
 	if (blob == "" || blob == null || blob == "null") {
 		console.log(logPrefix+"populateMatchesToAvoid0"+blob)
-		blob = "{}"
+		blob = "[]"
 	}
-	// format [][]string [['rose', 'larry'], ['a', 'b']]
+	// format [][]string [['x', 'y'], ['a', 'b']]
 	console.log(logPrefix+"populateMatchesToAvoid1"+blob)
 	try {
 		matchesToAvoid = JSON.parse(blob)
@@ -1042,8 +1025,8 @@ function populateMatchesToAvoid(blob) {
 	console.log(logPrefix+"populateMatchesToAvoid2 "+matchesToAvoid.length)
 }
 
-function isCohost(username) {
-	return cohosts.get(username) !== undefined
+function isCohost(participant) {
+	return cohosts.get(participant.DisplayName) !== undefined
 }
 
 function makeMatches(assignableUsers) {
@@ -1193,7 +1176,7 @@ function getAllAssignableUsers() {
 
 	// Relies on clicking the first Assign button.
 	if (!assignButtons[0])
-		return;
+		return false;
 	assignButtons[0].click();
 
 	console.log(logPrefix + " getAllAssignableUsers1")
@@ -1208,7 +1191,6 @@ function getAllAssignableUsers() {
 		return false;
 	}
 
-	// @TODO finish testing this
 	console.log(logPrefix + " getAllAssignableUsers3 "+x.length)
 	asterisksUsers.clear()
 	let y = [];
@@ -1288,16 +1270,6 @@ function getAllAssignButtons() {
 		return false;
 	}
 	return x;
-}
-
-function makeUserDict() {
-	userDict = {}; // reset
-	for (let i in assignableUsers) {
-		userDict[assignableUsers[i]] = {
-			name: assignableUsers[i],
-			index: i
-		}
-	}
 }
 
 /**
