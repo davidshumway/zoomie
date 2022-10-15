@@ -73,11 +73,10 @@ function load() {
 }
 
 function updateStorage() {
-	console.log(logPrefix+"updateStorage0"+JSON.stringify(matchesToAvoid))
+	console.log(logPrefix+"updateStorage0: "+matchesToAvoid.length)
 	localStorage.setItem(matchesToAvoidKey, JSON.stringify(matchesToAvoid))
-	console.log(logPrefix+"updateStorage1"+JSON.stringify(previousMatches))
 	localStorage.setItem(previousMatchesKey, JSON.stringify(previousMatches))
-	console.log(logPrefix+"updateStorage2")
+	console.log(logPrefix+"updateStorage1: "+previousMatches.length)
 }
 
 function loadStorage() {
@@ -87,14 +86,13 @@ function loadStorage() {
 	if (str !== "null") {
 		populateMatchesToAvoid(value)
 	}
-	console.log(logPrefix+" loadStorage1")
+	console.log(logPrefix+" loadStorage1: "+matchesToAvoid.length)
 	value = localStorage.getItem(previousMatchesKey)
 	str = JSON.stringify(value)
 	if (str !== "null") {
-		console.log(logPrefix+JSON.stringify(value))
 		populateMatches(value)
 	}
-	console.log(logPrefix+" loadStorage2")
+	console.log(logPrefix+" loadStorage2: "+previousMatches.length)
 }
 
 /**
@@ -203,8 +201,6 @@ function detachSettings() {
  * Attach the settings elements to the dialog box.
  */
 function attachZoomie() {
-	console.log(logPrefix + "Entering attachZoomie()")
-
 	////////////////////////////////////////////////////////////////
 	// Dialog container
 	////////////////////////////////////////////////////////////////
@@ -270,7 +266,6 @@ function attachZoomie() {
 	elements.autoCloseLabel.appendChild(z);
 	z.onchange = function() {
 		localStorage['zoomie-closeTime'] = parseInt(this.value);
-		console.log(logPrefix + 'Updated close time');
 	}
 
 
@@ -303,8 +298,6 @@ function attachZoomie() {
 }
 
 function attachZoomieSettings() {
-	console.log(logPrefix + "Entering attachZoomieSettings()")
-
 	////////////////////////////////////////////////////////////////
 	// Dialog container
 	////////////////////////////////////////////////////////////////
@@ -349,20 +342,17 @@ function attachZoomieSettings() {
 	z.onchange = function() {
 		populateMatchesToAvoid(this.value)
 		updateStorage()
-		console.log(logPrefix + 'Updated matches to avoid');
 	}
 
 	//
 	z = document.createElement('input');
 	z.type = 'textarea';
-	console.log(logPrefix+" putting value into input "+JSON.stringify(previousMatches))
 	z.value = JSON.stringify(previousMatches, null, 2);
 	z.className = 'zoomieInput';
 	elements.zoomieSettingsInput.appendChild(z);
 	z.onchange = function() {
 		populateMatches(this.value)
 		updateStorage()
-		console.log(logPrefix + 'Updated previous matches');
 	}
 
 	//////////////////////////////////////////
@@ -534,12 +524,12 @@ function updatePairingsFinal() {
 	// Attach to close all rooms button.
 	setTimeout(attachCloseAllRooms, 100);
 
-	console.log(logPrefix+" updatePairingsFinal before len(previousMatches) "+previousMatches.length)
 	previousMatches = previousMatches.concat(currentMatches)
-	console.log(logPrefix+" updatePairingsFinal after len(previousMatches) "+previousMatches.length)
 	currentMatches = []
 
 	updateStorage()
+
+	// @TODO automate halfway broadcast message
 }
 
 /**
@@ -680,7 +670,6 @@ function closeZoomieSettings() {
  * Show ignore users dialog box.
  */
 function showIgnoreUsersSelect() {
-	console.log(logPrefix+'entering showIgnoreUsersSelect')
 	// Close any popup dialog boxes that are opened when user clicks
 	// any of the "Assign" buttons.
 	closeAssignPopups();
@@ -818,11 +807,9 @@ function duplicateOrAvoid(firstUniqueName, secondUniqueName) {
 	firstUniqueName = firstUniqueName.toLowerCase()
 	secondUniqueName = secondUniqueName.toLowerCase()
 	let avoid = false
-	console.log(logPrefix+"before avoid loop")
 	for (let key in matchesToAvoid) {
 		let firstAvoidLower = matchesToAvoid[key][0].toLowerCase()
 		let secondAvoidLower = matchesToAvoid[key][1].toLowerCase()
-		console.log(logPrefix+"inside avoid loop "+key+firstAvoidLower+secondAvoidLower)
 		if (firstUniqueName.includes(firstAvoidLower)) {
 			if (secondUniqueName.includes(secondAvoidLower)) {
 				avoid = true
@@ -990,17 +977,14 @@ function unregisterMatch(firstUniqueName, secondUniqueName) {
 
 function populateMatches(blob) {
 	previousMatches = []
-	if (blob == "" || blob == null || blob == "null") {
-		console.log(logPrefix+"populateMatches0"+blob)
+	if (blob === "" || blob === null || blob === "null") {
 		blob = "[]"
 	}
-	console.log(logPrefix+"populateMatches1"+blob)
 	try {
 		previousMatches = JSON.parse(blob)
 	} catch {
 		previousMatches = []
 	}
-	console.log(logPrefix+"populateMatches2 "+previousMatches.length)
 	registeredMatches.clear()
 
 	for (let i = 0; i < previousMatches.length; i++) {
@@ -1012,17 +996,14 @@ function populateMatches(blob) {
 function populateMatchesToAvoid(blob) {
 	matchesToAvoid = []
 	if (blob == "" || blob == null || blob == "null") {
-		console.log(logPrefix+"populateMatchesToAvoid0"+blob)
 		blob = "[]"
 	}
 	// format [][]string [['x', 'y'], ['a', 'b']]
-	console.log(logPrefix+"populateMatchesToAvoid1"+blob)
 	try {
 		matchesToAvoid = JSON.parse(blob)
 	} catch {
 		matchesToAvoid = []
 	}
-	console.log(logPrefix+"populateMatchesToAvoid2 "+matchesToAvoid.length)
 }
 
 function isCohost(participant) {
@@ -1172,63 +1153,48 @@ function isPronoun(part) {
  * @return {Array} y Returns an array of objects representing users.
  */
 function getAllAssignableUsers() {
-	console.log(logPrefix + " getAllAssignableUsers0")
 
 	// Relies on clicking the first Assign button.
 	if (!assignButtons[0])
 		return false;
 	assignButtons[0].click();
 
-	console.log(logPrefix + " getAllAssignableUsers1")
 	let x = document.getElementsByClassName(
 		'zmu-data-selector-item__text bo-room-assign-list-scrollbar__item-text'
 	);
-	console.log(logPrefix + " getAllAssignableUsers2")
 	if (x.length === 0) {
-		console.log(logPrefix + " Found zero in the room list")
 		//alert('(Zoomie) No assignable users!');
 		assignButtons[0].click(); // Close the box
 		return false;
 	}
 
-	console.log(logPrefix + " getAllAssignableUsers3 "+x.length)
 	asterisksUsers.clear()
 	let y = [];
 	let lastCohost = "";
 	for (let i=0; i<x.length; i++) {
 		let username = x[i].innerText.trim()
-		console.log(logPrefix + " getAllAssignableUsers3.2 "+username)
 		let skip = username.includes("***")
 		if (skip) {
 			asterisksUsers.set(username, true)
 			continue
 		}
-		console.log(logPrefix + " getAllAssignableUsers3.3 ")
 		if (containsCohost(username) === true) {
-		console.log(logPrefix + " getAllAssignableUsers3.31")
 			cohosts.set(username, true)
-		console.log(logPrefix + " getAllAssignableUsers3.32")
 			if (lastCohost === "") {
-		console.log(logPrefix + " getAllAssignableUsers3.33")
 				lastCohost = username
 				continue
 			}
-		console.log(logPrefix + " getAllAssignableUsers3.34")
 		}
-		console.log(logPrefix + " getAllAssignableUsers3.4")
 
 		// Add an attribute for our purposes
 		y.push(username)
-		console.log(logPrefix + " getAllAssignableUsers3.5")
 	}
 	assignButtons[0].click(); // unclick
-	console.log(logPrefix + " getAllAssignableUsers4")
 
 	let shuffled = shuffle(y);
 	if (lastCohost !== "") {
 		shuffled.push(lastCohost)
 	}
-	console.log(logPrefix + " getAllAssignableUsers5")
 	return shuffled;
 }
 
