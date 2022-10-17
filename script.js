@@ -33,6 +33,7 @@ let assignableUsers = [], // Assignable users
 	previousMatches = [],
 	previousMatchesKey = "previousMatches",
 	registeredMatches = new Map(),
+	pendingMatches = new Map(),
 	asterisksUsers = new Map(),
 	matchesToAvoid = [], // based on username, which can change... FUN
 	matchesToAvoidKey = "matchesToAvoid",
@@ -512,11 +513,14 @@ function autoCloseRooms() {
 		}
 	}
 }
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 /**
  * User accepted pairings and opened rooms, so finalize pairs list.
  */
-function updatePairingsFinal() {
+async function updatePairingsFinal() {
 
 	// Remove the -Auto- button.
 	elements.autoButton.parentNode.removeChild(elements.autoButton);
@@ -527,9 +531,45 @@ function updatePairingsFinal() {
 	previousMatches = previousMatches.concat(currentMatches)
 	currentMatches = []
 
+	let merged = new Map([...registeredMatches, ...pendingMatches])
+	registeredMatches = merged
+	pendingMatches = new Map()
+
 	updateStorage()
 
 	// @TODO automate halfway broadcast message
+	/*
+	console.log(logPrefix+"waiting 3:30 until broadcast")
+	//for (let i = 0; i < 7; i++) {
+	//	await sleep(30000);
+	//	console.log(logPrefix+"...30s...")
+	//}
+	let footer = document.getElementsByClassName(
+		"bo-room-in-progress-footer"
+	)[0];
+	let broadcast = footer.getElementsByClassName(
+		"bo-room-in-progress-footer__btn-broadcast"
+	)[0];
+	broadcast.click();
+	console.log(logPrefix+"#1")
+
+	let broadcastMessage = footer.getElementsByClassName(
+		"zmu-btn broadcastclassNameon-paper__btn zmu-btn--ghost zmu-btn__outline--blue"
+	)[0];
+	broadcastMessage.click();
+	console.log(logPrefix+"#2")
+	let textArea = footer.getElementsByClassName(
+		"bmaxLengthoadcastclassNamel__textarea"
+	)[0];
+	textArea.value = "H A L F W A Y   T H R O U G H !! :^)"
+	console.log(logPrefix+"#3 filled")
+	let send = footer.getElementsByClassName(
+		"bo-room-broadcast-panel__send-btn"
+	)[0];
+	send.click();
+	console.log(logPrefix+"#4")
+
+	 */
 }
 
 /**
@@ -768,6 +808,7 @@ function closeAssignPopups() {
 
 function resetPairings() {
 	currentMatches = []
+	pendingMatches = new Map()
 
 	// Go through every room and remove any users in the room.
 	for (let i=0; i<assignButtons.length; i++) {
@@ -783,29 +824,43 @@ function resetPairings() {
 	}
 }
 
-function duplicateOrAvoid(firstUniqueName, secondUniqueName) {
-	if (firstUniqueName === secondUniqueName) {
-		console.log(logPrefix+"GAHHHHH");
-		return {duplicate: false, avoid: true};
+function duplicateOrAvoid(firstParticipant, secondParticipant) {
+	if (firstParticipant.UniqueName === secondParticipant.UniqueName) {
+		console.log(logPrefix + "GAHHHHH");
+		return {duplicate: false, avoid: true, cohosts: false};
 	}
-	if (firstUniqueName === "") {
-		console.log(logPrefix+"GAHHHHH");
-		return {duplicate: false, avoid: true};
+	if (firstParticipant.UniqueName === "") {
+		console.log(logPrefix + "GAHHHHH");
+		return {duplicate: false, avoid: true, cohosts: false};
 	}
-	if (secondUniqueName === "") {
-		console.log(logPrefix+"GAHHHHH");
-		return {duplicate: false, avoid: true};
+	if (secondParticipant.UniqueName === "") {
+		console.log(logPrefix + "GAHHHHH");
+		return {duplicate: false, avoid: true, cohosts: false};
 	}
 
-	// @TODO do not match cohosts
+	// Do not match cohosts
+	if (isCohost(firstParticipant) && isCohost(secondParticipant)) {
+		console.log(logPrefix + "trying to avoid matching cohosts")
+		return {
+			duplicate: false,
+			avoid: false,
+			cohosts: true,
+		};
+	}
 
-	let one = registeredMatches.has(firstUniqueName+secondUniqueName)
-	let two = registeredMatches.has(secondUniqueName+firstUniqueName)
+	let one = registeredMatches.has(firstParticipant.UniqueName + secondParticipant.UniqueName)
+	let two = registeredMatches.has(secondParticipant.UniqueName + firstParticipant.UniqueName)
 	let duplicate = one && two
 
 
-	firstUniqueName = firstUniqueName.toLowerCase()
-	secondUniqueName = secondUniqueName.toLowerCase()
+	let firstUniqueName = firstParticipant.UniqueName
+	if (firstUniqueName !== "") {
+		firstUniqueName = firstUniqueName.toLowerCase()
+	}
+	let secondUniqueName = secondParticipant.UniqueName
+	if (secondUniqueName !== "") {
+		secondUniqueName = secondUniqueName.toLowerCase()
+	}
 	let avoid = false
 	for (let key in matchesToAvoid) {
 		let firstAvoidLower = matchesToAvoid[key][0].toLowerCase()
@@ -824,6 +879,7 @@ function duplicateOrAvoid(firstUniqueName, secondUniqueName) {
 	return {
 		duplicate: duplicate,
 		avoid: avoid,
+		cohosts: false,
 	};
 }
 
@@ -832,7 +888,7 @@ function replaceWithAnyNonduplicate(matches, participants) {
 	let participant = {DisplayName: participants[0], UniqueName: uniqueNameFromDisplayName(participants[0])}
 	for (let i = 0; i < matches.length; i++) {
 		let match = matches[i]
-		let result = duplicateOrAvoid(participant.UniqueName, match.Participants[1].UniqueName)
+		let result = duplicateOrAvoid(participant, match.Participants[1])
 		let dup = result.duplicate
 		let avoid = result.avoid
 
@@ -850,7 +906,7 @@ function replaceWithAnyNonduplicate(matches, participants) {
 			return true
 		}
 
-		result = duplicateOrAvoid(participant.UniqueName, match.Participants[0].UniqueName)
+		result = duplicateOrAvoid(participant, match.Participants[0])
 		dup = result.duplicate
 		avoid = result.avoid
 		if (!dup && !avoid) {
@@ -871,12 +927,15 @@ function replaceWithAnyNonduplicate(matches, participants) {
 }
 
 function replaceWithAnyCohost(matches, participant) {
+	console.log(logPrefix + "replaceWithAnyCohost: "+participant)
 	let lastFoundCohost = -1
 	for (let i = 0; i < matches.length; i++) {
+		console.log(logPrefix + "replaceWithAnyCohost loop: "+i)
 		let match = matches[i]
 
 		if (isCohost(match.Participants[0])) {
-			let result = duplicateOrAvoid(participant.UniqueName, match.Participants[1].UniqueName)
+		console.log(logPrefix + "replaceWithAnyCohost first match: "+i+" "+match.Participants[1])
+			let result = duplicateOrAvoid(participant, match.Participants[1])
 			let dup = result.duplicate
 			let avoid = result.avoid
 
@@ -898,7 +957,8 @@ function replaceWithAnyCohost(matches, participant) {
 			}
 		}
 		if (isCohost(match.Participants[1])) {
-			let result = duplicateOrAvoid(participant.UniqueName, match.Participants[0].UniqueName)
+		console.log(logPrefix + "replaceWithAnyCohost second match: "+i)
+			let result = duplicateOrAvoid(participant, match.Participants[0])
 			let dup = result.duplicate
 			let avoid = result.avoid
 
@@ -922,9 +982,11 @@ function replaceWithAnyCohost(matches, participant) {
 	}
 
 	if (lastFoundCohost !== -1) {
+		console.log(logPrefix + "replaceWithAnyCohost last found equal -1: "+i)
 		let match = matches[lastFoundCohost]
 		if (isCohost(match.Participants[0])) {
-			let result = duplicateOrAvoid(participant.UniqueName, match.Participants[1].UniqueName)
+		console.log(logPrefix + "replaceWithAnyCohost first match: "+i)
+			let result = duplicateOrAvoid(participant, match.Participants[1])
 			let dup = result.duplicate
 			let avoid = result.avoid
 
@@ -943,7 +1005,8 @@ function replaceWithAnyCohost(matches, participant) {
 			}
 		}
 		if (isCohost(match.Participants[1])) {
-			let result = duplicateOrAvoid(participant.UniqueName, match.Participants[0].UniqueName)
+		console.log(logPrefix + "replaceWithAnyCohost second match: "+i)
+			let result = duplicateOrAvoid(participant, match.Participants[0])
 			let dup = result.duplicate
 			let avoid = result.avoid
 
@@ -966,13 +1029,13 @@ function replaceWithAnyCohost(matches, participant) {
 }
 
 function registerMatch(firstUniqueName, secondUniqueName) {
-	registeredMatches.set(firstUniqueName+secondUniqueName, true)
-	registeredMatches.set(secondUniqueName+firstUniqueName, true)
+	pendingMatches.set(firstUniqueName+secondUniqueName, true)
+	pendingMatches.set(secondUniqueName+firstUniqueName, true)
 }
 
 function unregisterMatch(firstUniqueName, secondUniqueName) {
-	registeredMatches.delete(firstUniqueName+secondUniqueName)
-	registeredMatches.delete(secondUniqueName+firstUniqueName)
+	pendingMatches.delete(firstUniqueName+secondUniqueName)
+	pendingMatches.delete(secondUniqueName+firstUniqueName)
 }
 
 function populateMatches(blob) {
@@ -1012,6 +1075,8 @@ function isCohost(participant) {
 
 function makeMatches(assignableUsers) {
 	currentMatches = []
+	pendingMatches = new Map()
+
 	let availableParticipants = [...assignableUsers]
 
 	while (availableParticipants.length >= 2) {
@@ -1030,33 +1095,39 @@ function makeMatches(assignableUsers) {
 		let firstParticipant = {DisplayName: availableParticipants[0], UniqueName: uniqueNameFromDisplayName(availableParticipants[0])}
 		let secondParticipant = {DisplayName: availableParticipants[second], UniqueName: uniqueNameFromDisplayName(availableParticipants[second])}
 
-		let result = duplicateOrAvoid(firstParticipant.UniqueName, secondParticipant.UniqueName)
+		let result = duplicateOrAvoid(firstParticipant, secondParticipant)
 		let dup = result.duplicate
 		let avoid = result.avoid
+		let cohosts = result.cohosts
 
-		if (dup || avoid) {
-			console.log(logPrefix + "found a duplicate ("+dup+") avoid ("+avoid+") between "+availableParticipants[0]+" and "+ availableParticipants[second])
-		}
-		while ((dup || avoid) && (second <= availableParticipants.length-2)) { // -1 for index numbering and -1 for line 140
-			console.log(logPrefix + "trying to fix")
-			second++
-			secondParticipant = {DisplayName: availableParticipants[second], UniqueName: uniqueNameFromDisplayName(availableParticipants[second])}
-			result = duplicateOrAvoid(firstParticipant.UniqueName, secondParticipant.UniqueName)
-			dup = result.duplicate
-			avoid = result.avoid
-		}
+		if (!((cohosts === true) && (availableParticipants.length !== 2))) {
+			if (dup || avoid) {
+				console.log(logPrefix + "found a duplicate (" + dup + ") avoid (" + avoid + ") between " + availableParticipants[0] + " and " + availableParticipants[second])
+			}
+			while ((dup || avoid) && (second <= availableParticipants.length - 2)) { // -1 for index numbering and -1 for line 140
+				console.log(logPrefix + "trying to fix")
+				second++
+				secondParticipant = {
+					DisplayName: availableParticipants[second],
+					UniqueName: uniqueNameFromDisplayName(availableParticipants[second])
+				}
+				result = duplicateOrAvoid(firstParticipant, secondParticipant)
+				dup = result.duplicate
+				avoid = result.avoid
+			}
 
-		let avoided = true
-		if (dup || avoid) {
-			// if no non duplicate found by the end, start over at the beginning
-			let ok = replaceWithAnyNonduplicate(currentMatches, availableParticipants)
-			if (!ok) {
-				avoided = false
-				console.log(logPrefix + "Unable to avoid duplicate!")
-			} else {
-				dup = false
-				avoid = false
-				continue
+			let avoided = true
+			if (dup || avoid) {
+				// if no non duplicate found by the end, start over at the beginning
+				let ok = replaceWithAnyNonduplicate(currentMatches, availableParticipants)
+				if (!ok) {
+					avoided = false
+					console.log(logPrefix + "Unable to avoid duplicate!")
+				} else {
+					dup = false
+					avoid = false
+					continue
+				}
 			}
 		}
 
@@ -1107,11 +1178,19 @@ function uniqueNameFromDisplayName(displayName) {
 				secondIndex++
 				continue
 			}
-			return parts.slice(firstIndex, secondIndex-1).join(" ").trim()
+			let concat = parts.slice(firstIndex, secondIndex).join(" ").trim()
+			if (concat === "") {
+				concat = displayName
+			}
+			return concat
 		}
 		secondIndex++
 	}
-	return parts.slice(firstIndex, secondIndex).join(" ").trim()
+	let concat = parts.slice(firstIndex, secondIndex).join(" ").trim()
+	if (concat === "") {
+		concat = displayName
+	}
+	return concat
 }
 
 function isColor(part) {
