@@ -14,13 +14,6 @@
  * 		on a "basic" account by enabling
  *      `MeetingConfig.meetingOptions.isEnableBreakoutRoom = true'
  * 		in the browser console.
- *
- * TODO: If browser window reloads, then list of pairings will be
- * 		forgotten. Can solve by keeping pairings in the browser or
- * 		extension cache.
- *
- * 	if in localStorage, will the matches get above 10MB?
-*
  */
 
 /**
@@ -927,14 +920,12 @@ function replaceWithAnyNonduplicate(matches, participants) {
 }
 
 function replaceWithAnyCohost(matches, participant) {
-	console.log(logPrefix + "replaceWithAnyCohost: "+participant)
+	console.log(logPrefix + "replaceWithAnyCohost: "+participant.DisplayName)
 	let lastFoundCohost = -1
 	for (let i = 0; i < matches.length; i++) {
-		console.log(logPrefix + "replaceWithAnyCohost loop: "+i)
 		let match = matches[i]
 
 		if (isCohost(match.Participants[0])) {
-		console.log(logPrefix + "replaceWithAnyCohost first match: "+i+" "+match.Participants[1])
 			let result = duplicateOrAvoid(participant, match.Participants[1])
 			let dup = result.duplicate
 			let avoid = result.avoid
@@ -957,7 +948,6 @@ function replaceWithAnyCohost(matches, participant) {
 			}
 		}
 		if (isCohost(match.Participants[1])) {
-		console.log(logPrefix + "replaceWithAnyCohost second match: "+i)
 			let result = duplicateOrAvoid(participant, match.Participants[0])
 			let dup = result.duplicate
 			let avoid = result.avoid
@@ -982,10 +972,8 @@ function replaceWithAnyCohost(matches, participant) {
 	}
 
 	if (lastFoundCohost !== -1) {
-		console.log(logPrefix + "replaceWithAnyCohost last found equal -1: "+i)
 		let match = matches[lastFoundCohost]
 		if (isCohost(match.Participants[0])) {
-		console.log(logPrefix + "replaceWithAnyCohost first match: "+i)
 			let result = duplicateOrAvoid(participant, match.Participants[1])
 			let dup = result.duplicate
 			let avoid = result.avoid
@@ -1005,7 +993,6 @@ function replaceWithAnyCohost(matches, participant) {
 			}
 		}
 		if (isCohost(match.Participants[1])) {
-		console.log(logPrefix + "replaceWithAnyCohost second match: "+i)
 			let result = duplicateOrAvoid(participant, match.Participants[0])
 			let dup = result.duplicate
 			let avoid = result.avoid
@@ -1058,7 +1045,7 @@ function populateMatches(blob) {
 
 function populateMatchesToAvoid(blob) {
 	matchesToAvoid = []
-	if (blob == "" || blob == null || blob == "null") {
+	if (blob === "" || blob == null || blob === "null") {
 		blob = "[]"
 	}
 	// format [][]string [['x', 'y'], ['a', 'b']]
@@ -1152,7 +1139,7 @@ function makeMatches(assignableUsers) {
 				console.log(logPrefix + "BAD! odd participant left out")
 				// switch odd participant with any cohost
 
-				let ok = replaceWithAnyCohost(currentMatches, availableParticipants)
+				let ok = replaceWithAnyCohost(currentMatches, firstParticipant)
 				if (!ok) {
 					console.log(logPrefix + "Well this is awkward... couldn't find a cohost to switch with the odd participant")
 				}
