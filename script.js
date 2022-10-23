@@ -14,13 +14,6 @@
  * 		on a "basic" account by enabling
  *      `MeetingConfig.meetingOptions.isEnableBreakoutRoom = true'
  * 		in the browser console.
- *
- * TODO: If browser window reloads, then list of pairings will be
- * 		forgotten. Can solve by keeping pairings in the browser or
- * 		extension cache.
- *
- * 	if in localStorage, will the matches get above 10MB?
-*
  */
 
 /**
@@ -29,25 +22,30 @@
 let logPrefix = 'Zoomie extension::';
 let assignableUsers = [], // Assignable users
 	assignButtons = [], // Assign buttons
-	userDict = {}, // Always updates to match assignableUsers. {'name': {'name': <str>, 'index': <#>}}
-	currentMatches = {},
-	previousMatches = new Map(),
+	currentMatches = [],
+	previousMatches = [],
+	previousMatchesKey = "previousMatches",
+	registeredMatches = new Map(),
+	pendingMatches = new Map(),
 	asterisksUsers = new Map(),
-	matchesToAvoid = {}, // based on username, which can change... FUN
-	cohosts = {},
-	primaryCohost = '',
+	matchesToAvoid = [], // based on username, which can change... FUN
+	matchesToAvoidKey = "matchesToAvoid",
+	cohosts = new Map(),
 	elements = {
 		userIgnoreSelect: null,
 		userIgnoreSelectAccept: null,
 		userIgnoreSelectTitle: null,
 		autoButton: null,
+
+		zoomieSettingsInput: null,
+		zoomieSettingsInputAccept: null,
+		zoomieSettingsInputTitle: null,
+		settingsAutoButton: null,
 	},
 	breakoutRoomHeight = 0,
 	generatedPairs = false,
 	breakoutWindowOpen = false // Tracks breakout dialog state (open/closed)
-//	storage = new IDBDatabase(),
-//	storageName = 'bonoboConnectMatches'
-	; 
+	;
 
 /**
  * Initialize the program.
@@ -56,96 +54,39 @@ function load() {
 	// Add css styles
 	add_styles()
 
-	/*
-+	// Let us open our database
-+	const DBOpenRequest = window.indexedDB.open(storageName);
-+
-+    // Register two event handlers to act on the database being opened successfully, or not
-+    DBOpenRequest.onerror = (event) => {
-+		// @TODO fuck... popup and ask to reload?
-+      // note.appendChild(createListItem('Error loading database.'));
-+    };
-+
-+	DBOpenRequest.onsuccess = (event) => {
-+		//note.appendChild(createListItem('Database initialised.'));
-+
-+		// Store the result of opening the database in the db variable. This is used a lot below
-+		storage = DBOpenRequest.result;
-+	};
-*/
+	loadStorage()
 
-	// Zoomie history pairings. Not required as of now.
-	//if (!localStorage['zoomie-history']) {
-		// Create new entry. An empty dict.
-		//~ localStorage['zoomie-history'] = '{}';
-	//} else {
-		//~ var newMtg = confirm('"ZOOMIE": Would you like to load any pairings from the previous session?');
-		//~ if (newMtg) {
-			//~ // Yes. Load it.
-			//~ // E.g. user reloaded page.
-			//~ try {
-				//~ pairings = JSON.parse(localStorage['zoomie-history']);
-				//~ tmpPairings = JSON.parse(localStorage['zoomie-history']);
-			//~ } catch (e) {
-				//~ alert('Could not parse last session:',e.message);
-			//~ }
-		//~ } else {
-			//~ // No. Don't load it.
-			//~ // Reset pairings object in storage.
-			//~ localStorage['zoomie-history'] = '{}';
-		//~ }
-	//}
 	// Saved - time to close
 	// Saved setting for auto-close time
 	if (!localStorage['zoomie-closeTime']) {
 		localStorage['zoomie-closeTime'] = 60;
 	}
-	// Saved - round number
-	//if (!localStorage['zoomie-roundNumber']) {
-	//	localStorage['zoomie-roundNumber'] = 1;
-	//}
-	
+
 	// If less than 2 seconds, then zoom.us overwrites getBreakoutButton().
 	//setTimeout(getBreakoutButton, 2000);
 }
-function updateStorage() {
 
+function updateStorage() {
+	console.log(logPrefix+"updateStorage0: "+matchesToAvoid.length)
+	localStorage.setItem(matchesToAvoidKey, JSON.stringify(matchesToAvoid))
+	localStorage.setItem(previousMatchesKey, JSON.stringify(previousMatches))
+	console.log(logPrefix+"updateStorage1: "+previousMatches.length)
 }
 
 function loadStorage() {
-	const objectStore = storage.transaction(storageName).objectStore(storageName);
-
-
-    objectStore.openCursor().onsuccess = (event) => {
-		const cursor = event.target.result;
-		// Check if there are no (more) cursor items to iterate through
-		if (!cursor) {
-			// No more items to iterate through, we quit.
-			note.appendChild(createListItem('Entries all displayed.'));
-			return;
-		}
-	};
-
-}
-
-function updateStorage() {
-
-}
-
-function loadStorage() {
-	const objectStore = storage.transaction(storageName).objectStore(storageName);
-
-
-    objectStore.openCursor().onsuccess = (event) => {
-		const cursor = event.target.result;
-		// Check if there are no (more) cursor items to iterate through
-		if (!cursor) {
-			// No more items to iterate through, we quit.
-			note.appendChild(createListItem('Entries all displayed.'));
-			return;
-		}
-	};
-
+	console.log(logPrefix+" loadStorage0 ")
+	let value = localStorage.getItem(matchesToAvoidKey)
+	let str = JSON.stringify(value)
+	if (str !== "null") {
+		populateMatchesToAvoid(value)
+	}
+	console.log(logPrefix+" loadStorage1: "+matchesToAvoid.length)
+	value = localStorage.getItem(previousMatchesKey)
+	str = JSON.stringify(value)
+	if (str !== "null") {
+		populateMatches(value)
+	}
+	console.log(logPrefix+" loadStorage2: "+previousMatches.length)
 }
 
 /**
@@ -184,30 +125,24 @@ function add_styles() {
 	// 60px + 10px + 10px = 80px
 	GM_addStyle('.zoomieSeconds {background-color: #efefef; border-bottom: 1px solid blue; cursor: pointer; width: 100%; height: 48px; padding: 6px;}');
 	GM_addStyle('.zoomieSecondsInput {cursor: pointer; width: 60px; zoom: 1.2; border-radius: 8px; padding-left: 4px; text-align: center;}');
-	
+
+	GM_addStyle('.zoomieInput {cursor: pointer; width: 50%; height: 80%; word-break: break-all}');
+
 	// Overwrites to zoom styles
-	
-	GM_addStyle('.common-window {border: 0 !important; box-shadow: none !important; -webkit-box-shadow: none !important;}'); 
-	
+
+	GM_addStyle('.common-window {border: 0 !important; box-shadow: none !important; -webkit-box-shadow: none !important;}');
+
 	GM_addStyle('.ReactModal__Content {transform: none !important; top: 4% !important; left: 0 !important;}');
 	GM_addStyle('.ReactModal__Content--after-open {transform: none !important; top: 4% !important; left: 0 !important;}');
-	
+
 	GM_addStyle('#boRoomMgmtWindow {width: 98% !important; position: fixed !important; margin-left: 1%;}');
 }
-
-//~ /**
- //~ * Wait for "Breakout Rooms" button to appear, then attach an event to it.
- //~ */
-//~ function getBreakoutButton() {
-	//~ //
-//~ }
 
 // Set an interval to watch for boRoomMgmtWindow element to appear.
 // Once it appears, then add the Zoomie button.
 // Then, set another interval to check when the boRoomMgmtWindow
 // disappears.
 window.setInterval(function() {
-	console.log(logPrefix + "Entering setInterval")
 	// Breakout window popup
 	let a = document.getElementById('boRoomMgmtWindow');
 	if (a && !breakoutWindowOpen) {
@@ -220,7 +155,6 @@ window.setInterval(function() {
 		breakoutWindowOpen = false;
 	}
 
-	console.log(logPrefix + "Before Recreate button popup")
 	// "Recreate" button popup
 	let b = document.getElementsByClassName('recreate-paper__footer');
 	if (b && b.length === 1 && !b[0].zoomie_mark) {
@@ -251,7 +185,7 @@ function getBreakoutRoomHeight() {
 }
 
 /**
- * 
+ *
  */
 function detachSettings() {
 	elements.ignoreContainer.parentNode.removeChild(elements.ignoreContainer);
@@ -259,29 +193,26 @@ function detachSettings() {
 
 /**
  * Attach the settings elements to the dialog box.
- * @param 
  */
-function attachSettings() {
-	console.log(logPrefix + "Entering attachSettings()")
-	
+function attachZoomie() {
 	////////////////////////////////////////////////////////////////
 	// Dialog container
 	////////////////////////////////////////////////////////////////
 	let a = document.getElementById('boRoomMgmtWindow');
-	
+
 	// Container for "-Auto-" button dialog
 	let z = document.createElement('div');
 	z.className = 'zoomie-ignoreContainer';
 	a.insertBefore(z, a.firstChild);
 	elements.ignoreContainer = z;
-	
+
 	// Ignore users title bar
 	z = document.createElement('div');
 	z.className = 'zoomie-ignoreUsersTitle';
 	z.innerText = 'Zoomie';
 	elements.ignoreContainer.appendChild(z);
 	elements.userIgnoreSelectTitle = z;
-	
+
 	//////////////////////////////////////////
 	// Ignore users main container
 	//////////////////////////////////////////
@@ -290,20 +221,19 @@ function attachSettings() {
 	elements.ignoreContainer.appendChild(z);
 	elements.userIgnoreSelect = z;
 	if (assignableUsers.length) {
-		z.innerHTML = // These are 50px tall. 12% + 26% + 60% = 98%
-			'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Ignore</div>'+
-			'<div class="ignoreLegend" style="width: 8% !important;overflow:hidden;">Co-host</div>'+
-			'<div class="ignoreLegend" style="width: 16% !important;overflow:hidden;">Participant</div>'+
-			'<div class="ignoreLegend" style="width: 66% !important;overflow:hidden;">Partners</div>'+
-			'<br style="clear:both" />'; 
+		z.innerHTML =
+			'<div class="ignoreLegend" style="width: 45% !important;overflow:hidden;">Participant</div>'+
+			'<div class="ignoreLegend" style="width: 45% !important;overflow:hidden;">Partners</div>'+
+			'<br style="clear:both" />';
 	}
-		
+
 	// Ignore users div to contain
 	z = document.createElement('div');
 	z.setAttribute('style', 'width:100%;height:400px;z-index:1004;display:none;background-color:#eee;overflow:auto;border-bottom:1px solid blue;');
 	elements.ignoreContainer.appendChild(z);
 	elements.userIgnoreSelectList = z;
-	
+
+
 	//////////////////////////////////////////
 	// Auto-close
 	//////////////////////////////////////////
@@ -312,15 +242,15 @@ function attachSettings() {
 	z.setAttribute('style', 'display:none;');
 	elements.ignoreContainer.appendChild(z);
 	elements.autoCloseDiv = z;
-	
-	// 
+
+	//
 	z = document.createElement('label');
 	z.innerText = 'Auto-close rooms after (seconds):  ';
 	z.style.cursor = 'pointer';
 	elements.autoCloseLabel = z;
 	elements.autoCloseDiv.appendChild(z);
-	
-	// 
+
+	// @TODO deprecate this setting
 	z = document.createElement('input');
 	z.type = 'number';
 	z.min = 0; // No negatives
@@ -330,45 +260,9 @@ function attachSettings() {
 	elements.autoCloseLabel.appendChild(z);
 	z.onchange = function() {
 		localStorage['zoomie-closeTime'] = parseInt(this.value);
-		console.log(logPrefix + 'Updated close time');
-	}
-	
-	//////////////////////////////////////////
-	// Round number
-	//////////////////////////////////////////
-	z = document.createElement('div');
-	z.className = 'zoomieSeconds';
-	z.setAttribute('style', 'display:none;');
-	elements.ignoreContainer.appendChild(z);
-	elements.roundSelectDiv = z;
-	
-	// 
-	z = document.createElement('label');
-	z.innerText = 'Current round:  ';
-	z.style.cursor = 'pointer';
-	elements.roundNumLabel = z;
-	elements.roundSelectDiv.appendChild(z);
-	
-	// 
-	z = document.createElement('input');
-	z.type = 'number';
-	z.min = 1; // No negatives
-	z.max = currentMatches.length; // No negatives
-	z.size = 4;
-	z.className = 'zoomieSecondsInput';
-	//z.value = parseInt(localStorage['zoomie-roundNumber']); // parseInt for cleaning
-	elements.roundNumLabel.appendChild(z);
-	z.onchange = function() {
-		if (this.value < 1) this.value = 1;
-		//localStorage['zoomie-roundNumber'] = parseInt(this.value);
-		//highlightRoundNum(parseInt(this.value));
-		//~ console.logPrefix('(Zoomie) updated close time');
 	}
 
-	// @TODO provide input for previous matches
-	// @TODO provide display of all matches
-	// @TODO provide input for matches to avoid
-	
+
 	//////////////////////////////////////////
 	// Accept ignored users button
 	//////////////////////////////////////////
@@ -376,7 +270,7 @@ function attachSettings() {
 	z.setAttribute('style', 'width: 100%; text-align: center; padding: 10px 0; background-color: #eee; border-bottom: 1px solid blue; display: none;');
 	elements.ignoreContainer.appendChild(z);
 	elements.okayButtonDiv = z;
-	
+
 	z = document.createElement('button');
 	z.setAttribute('style', 'z-index:1002;display:none;');
 	z.className = 'btn btn-primary';
@@ -384,7 +278,7 @@ function attachSettings() {
 	z.onclick = addToRooms;
 	elements.okayButtonDiv.appendChild(z);
 	elements.userIgnoreSelectAccept = z;
-	
+
 	//////////////////////////////////////////
 	// Cancel button
 	//////////////////////////////////////////
@@ -397,11 +291,86 @@ function attachSettings() {
 	elements.userIgnoreSelectCancel = z;
 }
 
+function attachZoomieSettings() {
+	////////////////////////////////////////////////////////////////
+	// Dialog container
+	////////////////////////////////////////////////////////////////
+	let a = document.getElementById('boRoomMgmtWindow');
+
+	// Container for "-Auto-" button dialog
+	let z = document.createElement('div');
+	z.className = 'zoomie-ignoreContainer';
+	a.insertBefore(z, a.firstChild);
+	elements.zoomieSettingsContainer = z;
+
+	// Ignore users title bar
+	z = document.createElement('div');
+	z.className = 'zoomie-ignoreUsersTitle';
+	z.innerText = 'Zoomie Settings';
+	elements.zoomieSettingsContainer.appendChild(z);
+
+	//////////////////////////////////////////
+	// Zoomie settings main container
+	//////////////////////////////////////////
+	z = document.createElement('div');
+	z.setAttribute('style', 'width:100%;z-index:1002;display:none;background-color:#eee;overflow:auto;');
+	elements.zoomieSettingsContainer.appendChild(z);
+	elements.zoomieSettingsInputTitle = z;
+		z.innerHTML =
+			'<div class="ignoreLegend" style="width: 50% !important;overflow:hidden;">Avoid Matches</div>'+
+			'<div class="ignoreLegend" style="width: 50% !important;overflow:hidden;">Previous Matches</div>'+
+			'<br style="clear:both" />';
+
+	// Avoid matches div to contain
+	z = document.createElement('div');
+	z.setAttribute('style', 'width:100%;height:400px;z-index:1004;display:none;background-color:#eee;overflow:auto;border-bottom:1px solid blue;');
+	elements.zoomieSettingsContainer.appendChild(z);
+	elements.zoomieSettingsInput = z;
+
+	//
+	z = document.createElement('input');
+	z.type = 'textarea';
+	z.value = JSON.stringify(matchesToAvoid, null, 2);
+	z.className = 'zoomieInput';
+	elements.zoomieSettingsInput.appendChild(z);
+	z.onchange = function() {
+		populateMatchesToAvoid(this.value)
+		updateStorage()
+	}
+
+	//
+	z = document.createElement('input');
+	z.type = 'textarea';
+	z.value = JSON.stringify(previousMatches, null, 2);
+	z.className = 'zoomieInput';
+	elements.zoomieSettingsInput.appendChild(z);
+	z.onchange = function() {
+		populateMatches(this.value)
+		updateStorage()
+	}
+
+	//////////////////////////////////////////
+	// Accept settings button
+	//////////////////////////////////////////
+	z = document.createElement('div');
+	z.setAttribute('style', 'width: 100%; text-align: center; padding: 10px 0; background-color: #eee; display:none; border-bottom: 1px solid blue;');
+	elements.zoomieSettingsContainer.appendChild(z);
+	elements.zoomieSettingButtonDiv = z;
+
+	z = document.createElement('button');
+	z.setAttribute('style', 'z-index:1002;');
+	z.className = 'btn btn-primary';
+	z.innerText = 'Okay';
+	z.onclick = closeZoomieSettings;
+	elements.zoomieSettingButtonDiv.appendChild(z);
+	elements.zoomieSettingsInputAccept = z;
+}
+
 /**
- * After user clicks "Breakout Rooms" button, adds "Zoomie Settings".
+ * After user clicks "Breakout Rooms" button, adds "Zoomie".
  */
 function attachBreakoutContainer() {
-	
+
 	// Check footer exists
 	let y = document.getElementsByClassName(
 		//'bo-mgmtwindow-content__footer'
@@ -412,22 +381,22 @@ function attachBreakoutContainer() {
 		setTimeout(attachBreakoutContainer, 100);
 		return;
 	}
-	
+
 	// Remove any users from rooms
-	resetPairings(); 
+	resetPairings();
 	setTimeout(resetPairings, 200);
 	setTimeout(resetPairings, 400);
 	setTimeout(resetPairings, 600);
-	
+
 	// Add listener to "Open All Rooms" button but only if it exists.
 	if (!attachOpenAllRooms()) {
 		setTimeout(attachBreakoutContainer, 200);
 		return;
 	}
-	
+
 	// Gets height of window to work with.
 	getBreakoutRoomHeight();
-	
+
 	// Remove button if exists.
 	if (elements.autoButton) {
 		try {
@@ -437,28 +406,47 @@ function attachBreakoutContainer() {
 			console.log(logPrefix + 'Could not remove autoButton');
 		}
 	}
-	
-	// An "auto"-pair button that can be clicked any number
-	// of times, continuously randomly permutating the 
-	// people into breakout rooms of size=2.
+
+	if (elements.settingsAutoButton) {
+		try {
+			elements.settingsAutoButton.parentNode.removeChild(elements.settingsAutoButton);
+			elements.settingsAutoButton = null;
+		} catch(e) {
+			console.log(logPrefix + 'Could not remove autoButton');
+		}
+	}
+
 	let z = document.createElement('button');
 	y[0].insertBefore(z, y[0].firstChild);
 	z.innerHTML = 'Zoomie Settings';
-	z.onclick = showIgnoreUsersSelect;
-	z.className = 
+	z.onclick = showZoomieSettings;
+	z.className =
 		'zmu-btn bo-bottom-btn zmu-btn--default zmu-btn__outline--blue';
 		// Changed Feb. 2021
 		//'zmu-btn zm-btn-legacy zmu-btn--default zmu-btn__outline--blue';
 	z.style.marginRight = '10px';
-	elements.autoButton = z;
-	
+	elements.settingsAutoButton = z;
+
+	// An "auto"-pair button that can be clicked any number
+	// of times, continuously randomly permutating the
+	// people into breakout rooms of size=2.
+	z = document.createElement('button');
+	y[0].insertBefore(z, y[0].firstChild);
+	z.innerHTML = 'Zoomie';
+	z.onclick = showIgnoreUsersSelect;
+	z.className =
+		'zmu-btn bo-bottom-btn zmu-btn--default zmu-btn__outline--blue';
+		// Changed Feb. 2021
+		//'zmu-btn zm-btn-legacy zmu-btn--default zmu-btn__outline--blue';
+	z.style.marginRight = '10px';
+ 	elements.autoButton = z;
 }
 
 /**
  * Perform an action when Open All Rooms is clicked.
- * 
+ *
  * Update (Feb. 2021): Button class updated.
- * 
+ *
  * @return: Boolean True if listener was added to "Open All Rooms" button.
  */
 function attachOpenAllRooms() {
@@ -475,10 +463,7 @@ function attachOpenAllRooms() {
 				return true;
 			}
 		}
-	}// else {
-	//	console.logPrefix('(ZOOMIE) Missing "Open all rooms" button!');
-	//	setTimeout(attachOpenAllRooms, 1000);
-	//}
+	}
 	return false;
 }
 /**
@@ -505,7 +490,7 @@ function attachCloseAllRooms() {
 	}
 }
 /**
- * 
+ *
  */
 function autoCloseRooms() {
 	let x = document.getElementsByClassName(
@@ -521,26 +506,69 @@ function autoCloseRooms() {
 		}
 	}
 }
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 /**
  * User accepted pairings and opened rooms, so finalize pairs list.
  */
-function updatePairingsFinal() {
-	
+async function updatePairingsFinal() {
+
 	// Remove the -Auto- button.
 	elements.autoButton.parentNode.removeChild(elements.autoButton);
-	
+
 	// Attach to close all rooms button.
 	setTimeout(attachCloseAllRooms, 100);
 
-	//@TODO write to storage
+	previousMatches = previousMatches.concat(currentMatches)
+	currentMatches = []
+
+	let merged = new Map([...registeredMatches, ...pendingMatches])
+	registeredMatches = merged
+	pendingMatches = new Map()
+
+	updateStorage()
+
+	// @TODO automate halfway broadcast message
+	/*
+	console.log(logPrefix+"waiting 3:30 until broadcast")
+	//for (let i = 0; i < 7; i++) {
+	//	await sleep(30000);
+	//	console.log(logPrefix+"...30s...")
+	//}
+	let footer = document.getElementsByClassName(
+		"bo-room-in-progress-footer"
+	)[0];
+	let broadcast = footer.getElementsByClassName(
+		"bo-room-in-progress-footer__btn-broadcast"
+	)[0];
+	broadcast.click();
+	console.log(logPrefix+"#1")
+
+	let broadcastMessage = footer.getElementsByClassName(
+		"zmu-btn broadcastclassNameon-paper__btn zmu-btn--ghost zmu-btn__outline--blue"
+	)[0];
+	broadcastMessage.click();
+	console.log(logPrefix+"#2")
+	let textArea = footer.getElementsByClassName(
+		"bmaxLengthoadcastclassNamel__textarea"
+	)[0];
+	textArea.value = "H A L F W A Y   T H R O U G H !! :^)"
+	console.log(logPrefix+"#3 filled")
+	let send = footer.getElementsByClassName(
+		"bo-room-broadcast-panel__send-btn"
+	)[0];
+	send.click();
+	console.log(logPrefix+"#4")
+
+	 */
 }
 
 /**
  * Add back the -Auto- button.
  */
 function closeAllRooms() {
-	// auto button
 	attachBreakoutContainer();
 }
 
@@ -548,437 +576,41 @@ function closeAllRooms() {
  * Add checkboxes and radios to ignore or make users the odd-number user.
  */
 function addUserSelect() {
-	
 	let div = elements.userIgnoreSelectList;
 	div.innerHTML = '';
-	
+
 	// No users?
 	if (!assignableUsers || assignableUsers.length === 0) {
 		div.innerHTML = '<br><center><b>No users found!</b></center><br>';
 		return;
 	}
-	
+
 	// All users loop
-	for (let i in assignableUsers) {
-		// [{name: '---'}, ...]
+	for (let i in currentMatches) {
 		let pnum = parseInt(i)+1; // Participant number. Start at 1, not 0.
+		let matches = currentMatches[i].Participants
 		let z = document.createElement('div');
 		z.setAttribute('style', 'width:100%;');
 		z.className = 'ignoreList' + (i % 2 === 0 ? 'Odd' : 'Even');
 		div.appendChild(z);
-		// checkbox
-		let y2 = document.createElement('input');
-		y2.type = 'checkbox';
-		y2.user = assignableUsers[i].name;
-		y2.className = 'zoomieRadio1';
-		y2.onclick = function() {
-			if (this.checked) {
-				cohosts[this.user] = true;
-			} else {
-				cohosts[this.user] = false;
-				// Make sure "odd-numbered" is unchecked.
-				this.y1.checked = false;
-				if (this.user === primaryCohost) {
-					primaryCohost = ''; // reset
-				}
-			}
-			
-			// Reset round counter
-			//localStorage['zoomie-roundNumber'] = 1;
 
-			// REGENERATE THE PAIRINGS and redraw
-			hideIgnoreUsersSelect();
-			showIgnoreUsersSelect();
-		}
-		z.appendChild(y2);
-		// radio
-		let y1 = document.createElement('input');
-		y1.type = 'radio';
-		y1.name = 'zoomie-radio'; // any name, doesn't matter
-		y1.user = assignableUsers[i].name;
-		y1.className = 'zoomieRadio2';
-		y1.onclick = function() {
-			primaryCohost = this.user;
-			// If primary cohost, then must be "ignored" by default.
-			// So check the box automatically.
-			if (!this.y2.checked) {
-				this.y2.click();
-			}
-			
-			// Reset round counter
-			// localStorage['zoomie-roundNumber'] = 1;
-			// REGENERATE THE PAIRINGS and redraw
-			hideIgnoreUsersSelect();
-			showIgnoreUsersSelect();
-		}
-		z.appendChild(y1);
-		
-		// checked1
-		if (assignableUsers[i].name === primaryCohost) {
-			y1.checked = true;
-		}
-		// checked2
-		if (ignoredUsers[assignableUsers[i].name] === true) {
-			y2.checked = true;
-		}
-		// 
-		y2.y1 = y1;
-		y1.y2 = y2;
-		// Name (hide overflow)
 		let y = document.createElement('span');
-		y.setAttribute('style', 'width: 16%;overflow:hidden;display:inline-block;');//
-		y.innerText =  '('+(pnum<10 ? '0'+pnum : pnum)+') ' + assignableUsers[i].name;
+		y.setAttribute('style', 'width: 5%;height:24px;overflow:hidden;display:inline-block;');
+		y.innerText =  '('+(pnum<10 ? '0'+pnum : pnum)+') ';
 		z.appendChild(y);
-		
-		///////////////////////////////////////////////////////////////
-		// If pairs have been generated, then show round pairings now.
-		///////////////////////////////////////////////////////////////
-		// 66% width (32% in use)
-		//let roundNum = parseInt(localStorage['zoomie-roundNumber']);
-			for (let j in currentMatches[r]) {
-				// pairings
-				var pairing = j.Participants;
-				var adduser = false;
-				if (pairing[0] === assignableUsers[i].name) {
-					// add p2
-					if (pairing[1] === null) {
-						adduser = '--';
-					} else {
-						adduser = parseInt(userDict[pairing[1]].index) + 1;
-					}
-				} else if (pairing[1] === assignableUsers[i].name) {
-					// add p1
-					if (pairing[0] === null) {
-						adduser = '--';
-					} else {
-						adduser = parseInt(userDict[pairing[0]].index) + 1;
-					}
-				}
-				if (adduser) {
-					let y = document.createElement('span');
-					y.setAttribute('style', 'width: 2%;height:24px;border:1px solid blue;overflow:hidden;display:inline-block;text-align:center;');
-					y.innerText =  (adduser<10 ? '0'+adduser : adduser);
-					z.appendChild(y);
-					y.className = 'roundnums';// roundnums-'+(j+1);
-					y.roundNum = parseInt(r)+1;
-				}
-			}
-		//highlightRoundNum(roundNum);
+
+
+		let x = document.createElement('span');
+		x.setAttribute('style', 'width: 25%;height:24px;border:1px solid blue;overflow:hidden;display:inline-block;text-align:center;');
+		x.innerText = matches[0].DisplayName;
+		z.appendChild(x);
+
+		let w = document.createElement('span');
+		w.setAttribute('style', 'width: 25%;height:24px;border:1px solid blue;overflow:hidden;display:inline-block;text-align:center;');
+		w.innerText = matches[1].DisplayName;
+		z.appendChild(w);
 	}
 }
-
-/**
- * @param round {integer} Round number to highlight.
-function highlightRoundNum(round) {
-	let x = document.getElementsByClassName('roundnums');
-	for (let i=0; i<x.length; i++) {
-		if (x[i].roundNum === round) {
-			x[i].style.fontWeight = 'bold';
-		} else {
-			x[i].style.fontWeight = 'normal';
-		}
-	}
-}
-*/
-
-/**
- * 
- * https://stackoverflow.com/questions/6648512/
- * 		scheduling-algorithm-for-a-round-robin-tournament
- *
- * 	@TODO this doesn't work my use case... copy over golang code
-function makeRoundRobinPairings(players) {
-  let p = JSON.parse(JSON.stringify(players));
-
-  // Remove ignores.
-  let newp = [];
-  let cohost = null;
-  for (let i in p) {
-	  if (!ignoredUsers[p[i].name]) {
-		  newp.push(p[i].name);
-	  }
-  }
-  
-  if (newp.length % 2 === 1) {
-    // If co-host
-    if (primaryCohost)
-		newp.push(primaryCohost);
-	else
-		newp.push(null);
-  }
-  p = JSON.parse(JSON.stringify(newp));
- 
-  ////////////////////////////////////////////
-  // TESTER
-  // let p = ['a', 'b', 'c', 'd', 'e', null];
-  ////////////////////////////////////////////
-  
-  let playerCount = p.length;
-  let rounds = playerCount - 1;
-  let half = playerCount / 2;
-  let tournamentPairings = [];
-  let playerIndexes = p.map((_, i) => i); //1,2,0
-  playerIndexes.shift()
-  
-  for (let round = 0; round < rounds; round++) {
-    let roundPairings = [];
-    let newPlayerIndexes = [0].concat(playerIndexes);
-    let firstHalf = newPlayerIndexes.slice(0, half);
-    let secondHalf = newPlayerIndexes.slice(half, playerCount).reverse();
-	
-    for (let i = 0; i < firstHalf.length; i++) {
-      roundPairings.push({
-        p1: p[firstHalf[i]],
-        p2: p[secondHalf[i]],
-      });
-    }
-    // rotating the array
-    playerIndexes.push(playerIndexes.shift());
-    tournamentPairings.push(roundPairings);
-  }
-
-  return tournamentPairings;
-}
-
-*/
-
-function duplicateOrAvoid(first, second) {
-	if (first === second) {
-		console.log(logPrefix+"GAHHHHH");
-		return {};
-	}
-
-	let one = previousMatches.has(first+second)
-	let two = previousMatches.has(second+first)
-	let duplicate = one && two
-
-
-	let avoid = false
-	for (let key in matchesToAvoid) {
-		if (first.includes(key)) {
-			if (second.includes(matchesToAvoid[key])) {
-				avoid = true
-			}
-		} else if (second.includes(key)) {
-			if (first.includes(matchesToAvoid[key])) {
-				avoid = true
-			}
-		}
-	}
-
-	return {
-		duplicate: duplicate,
-		avoid: avoid,
-	};
-}
-
-// if no non duplicate found by the end, start over at the beginning
-function replaceWithAnyNonduplicate(matches, username) {
-	for (let i = 0; i < matches.length; i++) {
-		let match = matches[i]
-		let result = duplicateOrAvoid(username, match.Participants[1])
-		let dup = result.duplicate
-		let avoid = result.avoid
-
-		if (!dup && !avoid) {
-			if (!match.Duplicate) {
-				unregisterMatch(match.Participants[0], match.Participants[1])
-			}
-			registerMatch(username, match.Participants[1])
-			matches[i] = {
-				Participants: [username, match.Participants[1]],
-				Duplicate:    dup}
-			return true
-		}
-
-		result = duplicateOrAvoid(username, match.Participants[0])
-		dup = result.duplicate
-		avoid = result.avoid
-		if (!dup && !avoid) {
-			if (!match.Duplicate) {
-				unregisterMatch(match.Participants[1], match.Participants[0])
-			}
-			registerMatch(username, match.Participants[0])
-			matches[i] = {
-				Participants: [username, match.Participants[0]],
-					Duplicate:    dup}
-			return true
-		}
-	}
-	return false
-}
-
-function replaceWithAnyCohost(matches, username) {
-	let lastFoundCohost = -1
-	for (let i = 0; i < matches.length; i++) {
-		let match = matches[i]
-
-		if (isCohost(match.Participants[0])) {
-			let result = duplicateOrAvoid(username, match.Participants[1])
-			let dup = result.duplicate
-			let avoid = result.avoid
-
-			if (!avoid) {
-				lastFoundCohost = i
-			}
-			if (!dup && !avoid) {
-				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
-				}
-				registerMatch(username, match.Participants[1])
-
-				matches[i] = {
-					Participants: [username, match.Participants[1]],
-						Duplicate:    dup}
-				return true
-			}
-		}
-		if (isCohost(match.Participants[1])) {
-			let result = duplicateOrAvoid(username, match.Participants[0])
-			let dup = result.duplicate
-			let avoid = result.avoid
-
-			if (!avoid) {
-				lastFoundCohost = i
-			}
-			if (!dup && !avoid) {
-				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
-				}
-				registerMatch(username, match.Participants[0])
-
-				matches[i] = {
-					Participants: [username, match.Participants[0]],
-						Duplicate:    dup}
-				return true
-			}
-		}
-	}
-
-	if (lastFoundCohost !== -1) {
-		let match = matches[lastFoundCohost]
-		if (isCohost(match.Participants[0])) {
-			let result = duplicateOrAvoid(username, match.Participants[1])
-			let dup = result.duplicate
-			let avoid = result.avoid
-
-			if (!avoid) {
-				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
-				}
-				registerMatch(username, match.Participants[0])
-
-				matches[lastFoundCohost] = {
-					Participants: [username, match.Participants[1]],
-						Duplicate:    dup}
-				return true
-			}
-		}
-		if (isCohost(match.Participants[1])) {
-			let result = duplicateOrAvoid(username, match.Participants[0])
-			let dup = result.duplicate
-			let avoid = result.avoid
-
-			if (!avoid) {
-				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
-				}
-				registerMatch(username, match.Participants[0])
-
-				matches[lastFoundCohost] = {
-					Participants: [username, match.Participants[1]],
-						Duplicate:    dup}
-				return true
-			}
-		}
-	}
-	return false
-}
-
-function registerMatch(first, second) {
-	previousMatches.set(first+second, true)
-	previousMatches.set(second+first, true)
-}
-
-function unregisterMatch(first, second) {
-	previousMatches.delete(first+second)
-	previousMatches.delete(second+first)
-}
-
-function regenerateMatchesMap(blob) {
-	let matchObjects = JSON.parse(blob)
-	// ... @TODO
-}
-
-function isCohost(username) {
-	return cohosts[username]
-}
-
-function makeMatches(availableParticipants) {
-	currentMatches = {}
-
-	while (availableParticipants.length > 1) {
-		console.log(logPrefix + 'Remaining available participants to match', availableParticipants.length);
-		let second = 1
-
-		let result = duplicateOrAvoid(availableParticipants[0], availableParticipants[second])
-		let dup = result.duplicate
-		let avoid = result.avoid
-
-		if (dup || avoid) {
-			console.log(logPrefix + "found a duplicate ("+dup+") avoid ("+avoid+") between "+availableParticipants[0]+" and "+ availableParticipants[second])
-		}
-		while ((dup || avoid) && (second <= availableParticipants.length-2)) { // -1 for index numbering and -1 for line 140
-			console.log(logPrefix + "trying to fix")
-			second++
-			result = duplicateOrAvoid(availableParticipants[0], availableParticipants[second])
-			dup = result.duplicate
-			avoid = result.avoid
-		}
-
-		let avoided = true
-		if (dup || avoid) {
-			// if no non duplicate found by the end, start over at the beginning
-			let ok = replaceWithAnyNonduplicate(currentMatches, availableParticipants[0])
-			if (!ok) {
-				avoided = false
-				console.log(logPrefix + "Unable to avoid duplicate!")
-			} else {
-				dup = false
-				avoid = false
-			}
-		}
-
-		if ((!dup && !avoid) || ((dup || avoid) && !avoided)) {
-			registerMatch(availableParticipants[0], availableParticipants[second]);
-			console.log(logPrefix + "Matching "+availableParticipants[0]+" and "+availableParticipants[second]+" ("+ second);
-			let m = {
-				Duplicate: dup,
-				Participants: [availableParticipants[0], availableParticipants[second]],
-			};
-			currentMatches.push(m);
-			delete availableParticipants[second];
-			availableParticipants.shift();
-		} else {
-			console.log(logPrefix + "FUCK!")
-		}
-
-		if (availableParticipants.length === 1) {
-			if (!isCohost(availableParticipants[0])) {
-				console.log(logPrefix + "BAD! odd participant left out")
-				// switch odd participant with any cohost
-
-				let ok = replaceWithAnyCohost(currentMatches, availableParticipants[0])
-				if (!ok) {
-					console.log(logPrefix + "Well this is awkward... couldn't find a cohost to switch with the odd participant")
-				}
-			}
-		}
-	}
-
-	return true
-}
-
 
 /**
  * Hide & cancel
@@ -989,67 +621,82 @@ function cancelIgnoreUsersSelect() {
 	try {
 		document.getElementsByClassName('window-content')[0].style.display = '';
 	} catch(e) {
-		
+
 	}
 }
+
 /**
  * Hide ignore users dialog box and run the pairing program.
  */
 function hideIgnoreUsersSelect() {
 	detachSettings();
-	
+
 	// Show the default dialogs
 	try {
 		document.getElementsByClassName('window-content')[0].style.display = '';
 	} catch(e) {
-		
+
 	}
 }
 
 /**
- * 
+ *
  */
 function addToRooms() {
 	// hide the zoomie select dialog
 	hideIgnoreUsersSelect();
-	
+
 	// add users to rooms
 	//let r = parseInt(localStorage['zoomie-roundNumber']);
 	let roomNo = 0;
-	
+
 	// Sanity check. No pairs (e.g., none or one user present).
 	if (!currentMatches) {
 		// Exit silently.
-		return; 
+		return;
 	}
 	// Sanity check. If there aren't enough rooms, then quit right off.
 	if (assignButtons.length < currentMatches.length) {
 		// Need to have more breakout rooms!
 		// Alert the zoomie user.
 		alert('Please create more breakout rooms. There are not enough rooms for every pair of participants.');
-		return; 
+		return;
 	}
-	
+
 	// Loop to add to rooms
 	for (let i in currentMatches) {
-		let p = i.Participants;
-		if (p[0] === null || p[1] === null) continue; // Leave out solos
+		let p = currentMatches[i].Participants;
+		if (p[0].DisplayName === null || p[1].DisplayName === null) continue; // Leave out solos
 		// Made it past nulls. Open "Assign" dialog box.
 		assignButtons[roomNo].click();
 		// Loops through checkboxes.
 		let x = document.getElementsByClassName(
-			'zmu-data-selector-item'
+			'zmu-data-selector-item__text'
 		);
 		for (let k=0; k<x.length; k++) {
-			if (x[k].innerText === p[0]
-			 || x[k].innerText === p[1]) {
+			if (x[k].innerText === p[0].DisplayName
+			 || x[k].innerText === p[1].DisplayName) {
 				x[k].click();
 			}
 		}
 		assignButtons[roomNo].click(); // Unclick/Close
 		roomNo++;
 	}
-	
+
+}
+
+/**
+ *
+ */
+function closeZoomieSettings() {
+	elements.zoomieSettingsContainer.parentNode.removeChild(elements.zoomieSettingsContainer);
+
+	// Show the default dialogs
+	try {
+		document.getElementsByClassName('window-content')[0].style.display = '';
+	} catch(e) {
+
+	}
 }
 
 /**
@@ -1059,10 +706,10 @@ function showIgnoreUsersSelect() {
 	// Close any popup dialog boxes that are opened when user clicks
 	// any of the "Assign" buttons.
 	closeAssignPopups();
-	
+
 	// Remove any users from rooms, then populate the users field.
 	resetPairings();
-	
+
 	// Update global user data.
 	assignButtons = getAllAssignButtons();
 	if (!assignButtons) { // silent fail after user alert
@@ -1072,32 +719,14 @@ function showIgnoreUsersSelect() {
 	if (!assignableUsers) { // silent fail after user alert
 		//return;
 	}
-	
-	// Update makeUserDict
-	makeUserDict();
-	
+
 	// Generate pairs if new run.
 	// currentMatches = makeRoundRobinPairings(assignableUsers);
-	currentMatches = makeMatches(assignableUsers)
-	
-	// If there are more pairs than current round #, then reset round #.
-	// This would happen when there's a new meeting and there are no
-	// users joined yet and the round number is still here from the 
-	// last meeting.
-	//if (parseInt(localStorage['zoomie-roundNumber']) > generatedPairs.length) {
-	//	localStorage['zoomie-roundNumber'] = 1;
-	//}
-	
-	// ALWAYS GENERATE...
-				//~ if (!generatedPairs) {
-					//~ // new
-					//~ generatedPairs = makeRoundRobinPairings(assignableUsers);
-					//~ console.logPrefix('assignableUsers', assignableUsers);
-					//~ console.logPrefix('generatedPairs', generatedPairs);
-				//~ }
-	
+	generatedPairs = makeMatches(assignableUsers)
+	console.log(logPrefix + "currentMatches "+currentMatches.length)
+
 	// Attach the elements
-	attachSettings(); // Create the elements.
+	attachZoomie(); // Create the elements.
 	elements.userIgnoreSelectTitle.className = 'zoomie-ignoreUsersTitle zoomie-show';
 	elements.ignoreContainer.className = 'zoomie-ignoreContainer zoomie-show';
 	elements.userIgnoreSelect.style.display = '';
@@ -1105,19 +734,49 @@ function showIgnoreUsersSelect() {
 	elements.autoCloseDiv.style.display = '';
 	elements.userIgnoreSelectList.style.display = '';
 	elements.okayButtonDiv.style.display = '';
-	elements.roundSelectDiv.style.display = '';
 	elements.userIgnoreSelectCancel.style.display = '';
-	
+
 	// Users
 	addUserSelect();
-	
+
 	// Hide the background dialogs
 	try {
 		document.getElementsByClassName('window-content')[0].style.display = 'none';
 	} catch(e) {
-		
+
 	}
 }
+
+/**
+ * Show Zoomie settings.
+ */
+function showZoomieSettings() {
+	// Close any popup dialog boxes that are opened when user clicks
+	// any of the "Assign" buttons.
+	closeAssignPopups();
+
+	// Remove any users from rooms, then populate the users field.
+	resetPairings();
+
+	// Attach the elements
+	attachZoomieSettings(); // Create the elements.
+	elements.zoomieSettingsInputTitle.className = 'zoomie-ignoreUsersTitle zoomie-show';
+	elements.zoomieSettingsContainer.className = 'zoomie-ignoreContainer zoomie-show';
+	elements.zoomieSettingsInput.style.display = '';
+	elements.zoomieSettingsInputAccept.style.display = '';
+	elements.zoomieSettingButtonDiv.style.display = '';
+
+	// Users
+	// addUserSelect();
+
+	// Hide the background dialogs
+	try {
+		document.getElementsByClassName('window-content')[0].style.display = 'none';
+	} catch(e) {
+
+	}
+}
+
 
 /**
  * Closes all Assign button popups before running auto-assign.
@@ -1132,7 +791,7 @@ function closeAssignPopups() {
 		if (x[i].innerHTML !== '') {
 			// Typically only one opened at a time.
 			// Thus, could break here.
-			// But for the sake of completeness, it's worth it to 
+			// But for the sake of completeness, it's worth it to
 			// assume that in some case two dialog popups would
 			// be open simultaneously.
 			a[i].click();
@@ -1141,6 +800,9 @@ function closeAssignPopups() {
 }
 
 function resetPairings() {
+	currentMatches = []
+	pendingMatches = new Map()
+
 	// Go through every room and remove any users in the room.
 	for (let i=0; i<assignButtons.length; i++) {
 		assignButtons[i].click(); // Open dialog
@@ -1155,25 +817,53 @@ function resetPairings() {
 	}
 }
 
-function duplicateOrAvoid(first, second) {
-	if (first === second) {
-		console.log(logPrefix+"GAHHHHH");
-		return {};
+function duplicateOrAvoid(firstParticipant, secondParticipant) {
+	if (firstParticipant.UniqueName === secondParticipant.UniqueName) {
+		console.log(logPrefix + "GAHHHHH");
+		return {duplicate: false, avoid: true, cohosts: false};
+	}
+	if (firstParticipant.UniqueName === "") {
+		console.log(logPrefix + "GAHHHHH");
+		return {duplicate: false, avoid: true, cohosts: false};
+	}
+	if (secondParticipant.UniqueName === "") {
+		console.log(logPrefix + "GAHHHHH");
+		return {duplicate: false, avoid: true, cohosts: false};
 	}
 
-	let one = previousMatches.has(first+second)
-	let two = previousMatches.has(second+first)
+	// Do not match cohosts
+	if (isCohost(firstParticipant) && isCohost(secondParticipant)) {
+		console.log(logPrefix + "trying to avoid matching cohosts")
+		return {
+			duplicate: false,
+			avoid: false,
+			cohosts: true,
+		};
+	}
+
+	let one = registeredMatches.has(firstParticipant.UniqueName + secondParticipant.UniqueName)
+	let two = registeredMatches.has(secondParticipant.UniqueName + firstParticipant.UniqueName)
 	let duplicate = one && two
 
 
+	let firstUniqueName = firstParticipant.UniqueName
+	if (firstUniqueName !== "") {
+		firstUniqueName = firstUniqueName.toLowerCase()
+	}
+	let secondUniqueName = secondParticipant.UniqueName
+	if (secondUniqueName !== "") {
+		secondUniqueName = secondUniqueName.toLowerCase()
+	}
 	let avoid = false
 	for (let key in matchesToAvoid) {
-		if (first.includes(key)) {
-			if (second.includes(matchesToAvoid[key])) {
+		let firstAvoidLower = matchesToAvoid[key][0].toLowerCase()
+		let secondAvoidLower = matchesToAvoid[key][1].toLowerCase()
+		if (firstUniqueName.includes(firstAvoidLower)) {
+			if (secondUniqueName.includes(secondAvoidLower)) {
 				avoid = true
 			}
-		} else if (second.includes(key)) {
-			if (first.includes(matchesToAvoid[key])) {
+		} else if (secondUniqueName.includes(firstAvoidLower)) {
+			if (firstUniqueName.includes(secondAvoidLower)) {
 				avoid = true
 			}
 		}
@@ -1182,52 +872,61 @@ function duplicateOrAvoid(first, second) {
 	return {
 		duplicate: duplicate,
 		avoid: avoid,
+		cohosts: false,
 	};
 }
 
 // if no non duplicate found by the end, start over at the beginning
-function replaceWithAnyNonduplicate(matches, username) {
+function replaceWithAnyNonduplicate(matches, participants) {
+	let participant = {DisplayName: participants[0], UniqueName: uniqueNameFromDisplayName(participants[0])}
 	for (let i = 0; i < matches.length; i++) {
 		let match = matches[i]
-		let result = duplicateOrAvoid(username, match.Participants[1])
+		let result = duplicateOrAvoid(participant, match.Participants[1])
 		let dup = result.duplicate
 		let avoid = result.avoid
 
 		if (!dup && !avoid) {
 			if (!match.Duplicate) {
-				unregisterMatch(match.Participants[0], match.Participants[1])
+				console.log(logPrefix + "Unmatching "+match.Participants[0].DisplayName+" and "+match.Participants[1].DisplayName);
+				unregisterMatch(match.Participants[0].UniqueName, match.Participants[1].UniqueName)
 			}
-			registerMatch(username, match.Participants[1])
+			console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[1].DisplayName);
+			registerMatch(participant.UniqueName, match.Participants[1].UniqueName)
 			matches[i] = {
-				Participants: [username, match.Participants[1]],
+				Participants: [participant, match.Participants[1]],
 				Duplicate:    dup}
+			participants[0] = match.Participants[0].DisplayName
 			return true
 		}
 
-		result = duplicateOrAvoid(username, match.Participants[0])
+		result = duplicateOrAvoid(participant, match.Participants[0])
 		dup = result.duplicate
 		avoid = result.avoid
 		if (!dup && !avoid) {
 			if (!match.Duplicate) {
-				unregisterMatch(match.Participants[1], match.Participants[0])
+				console.log(logPrefix + "Unmatching "+match.Participants[0].DisplayName+" and "+match.Participants[1].DisplayName);
+				unregisterMatch(match.Participants[1].UniqueName, match.Participants[0].UniqueName)
 			}
-			registerMatch(username, match.Participants[0])
+			console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[0].DisplayName);
+			registerMatch(participant.UniqueName, match.Participants[0].UniqueName)
 			matches[i] = {
-				Participants: [username, match.Participants[0]],
+				Participants: [participant, match.Participants[0]],
 					Duplicate:    dup}
+			participants[0] = match.Participants[1].DisplayName
 			return true
 		}
 	}
 	return false
 }
 
-function replaceWithAnyCohost(matches, username) {
+function replaceWithAnyCohost(matches, participant) {
+	console.log(logPrefix + "replaceWithAnyCohost: "+participant.DisplayName)
 	let lastFoundCohost = -1
 	for (let i = 0; i < matches.length; i++) {
 		let match = matches[i]
 
 		if (isCohost(match.Participants[0])) {
-			let result = duplicateOrAvoid(username, match.Participants[1])
+			let result = duplicateOrAvoid(participant, match.Participants[1])
 			let dup = result.duplicate
 			let avoid = result.avoid
 
@@ -1236,18 +935,20 @@ function replaceWithAnyCohost(matches, username) {
 			}
 			if (!dup && !avoid) {
 				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
+					console.log(logPrefix + "Unmatching "+match.Participants[0].DisplayName+" and "+match.Participants[1].DisplayName);
+					unregisterMatch(match.Participants[0].UniqueName, match.Participants[1].UniqueName)
 				}
-				registerMatch(username, match.Participants[1])
+				console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[1].DisplayName);
+				registerMatch(participant.UniqueName, match.Participants[1].UniqueName)
 
 				matches[i] = {
-					Participants: [username, match.Participants[1]],
+					Participants: [participant, match.Participants[1]],
 						Duplicate:    dup}
 				return true
 			}
 		}
 		if (isCohost(match.Participants[1])) {
-			let result = duplicateOrAvoid(username, match.Participants[0])
+			let result = duplicateOrAvoid(participant, match.Participants[0])
 			let dup = result.duplicate
 			let avoid = result.avoid
 
@@ -1256,12 +957,14 @@ function replaceWithAnyCohost(matches, username) {
 			}
 			if (!dup && !avoid) {
 				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
+					console.log(logPrefix + "Unmatching "+match.Participants[0].DisplayName+" and "+match.Participants[1].DisplayName);
+					unregisterMatch(match.Participants[0].UniqueName, match.Participants[1].UniqueName)
 				}
-				registerMatch(username, match.Participants[0])
+				console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[0].DisplayName);
+				registerMatch(participant.UniqueName, match.Participants[0].UniqueName)
 
 				matches[i] = {
-					Participants: [username, match.Participants[0]],
+					Participants: [participant, match.Participants[0]],
 						Duplicate:    dup}
 				return true
 			}
@@ -1271,35 +974,39 @@ function replaceWithAnyCohost(matches, username) {
 	if (lastFoundCohost !== -1) {
 		let match = matches[lastFoundCohost]
 		if (isCohost(match.Participants[0])) {
-			let result = duplicateOrAvoid(username, match.Participants[1])
+			let result = duplicateOrAvoid(participant, match.Participants[1])
 			let dup = result.duplicate
 			let avoid = result.avoid
 
 			if (!avoid) {
 				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
+					console.log(logPrefix + "Unmatching "+match.Participants[0].DisplayName+" and "+match.Participants[1].DisplayName);
+					unregisterMatch(match.Participants[0].UniqueName, match.Participants[1].UniqueName)
 				}
-				registerMatch(username, match.Participants[0])
+				console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[1].DisplayName);
+				registerMatch(participant.UniqueName, match.Participants[1].UniqueName)
 
 				matches[lastFoundCohost] = {
-					Participants: [username, match.Participants[1]],
+					Participants: [participant, match.Participants[1]],
 						Duplicate:    dup}
 				return true
 			}
 		}
 		if (isCohost(match.Participants[1])) {
-			let result = duplicateOrAvoid(username, match.Participants[0])
+			let result = duplicateOrAvoid(participant, match.Participants[0])
 			let dup = result.duplicate
 			let avoid = result.avoid
 
 			if (!avoid) {
 				if (!match.Duplicate) {
-					unregisterMatch(match.Participants[0], match.Participants[1])
+					console.log(logPrefix + "Unmatching "+match.Participants[0].DisplayName+" and "+match.Participants[1].DisplayName);
+					unregisterMatch(match.Participants[0].UniqueName, match.Participants[1].UniqueName)
 				}
-				registerMatch(username, match.Participants[0])
+				console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[0].DisplayName);
+				registerMatch(participant.UniqueName, match.Participants[0].UniqueName)
 
 				matches[lastFoundCohost] = {
-					Participants: [username, match.Participants[1]],
+					Participants: [participant, match.Participants[1]],
 						Duplicate:    dup}
 				return true
 			}
@@ -1308,80 +1015,131 @@ function replaceWithAnyCohost(matches, username) {
 	return false
 }
 
-function registerMatch(first, second) {
-	previousMatches.set(first+second, true)
-	previousMatches.set(second+first, true)
+function registerMatch(firstUniqueName, secondUniqueName) {
+	pendingMatches.set(firstUniqueName+secondUniqueName, true)
+	pendingMatches.set(secondUniqueName+firstUniqueName, true)
 }
 
-function unregisterMatch(first, second) {
-	previousMatches.delete(first+second)
-	previousMatches.delete(second+first)
+function unregisterMatch(firstUniqueName, secondUniqueName) {
+	pendingMatches.delete(firstUniqueName+secondUniqueName)
+	pendingMatches.delete(secondUniqueName+firstUniqueName)
 }
 
-function regenerateMatchesMap(blob) {
-	let matchObjects = JSON.parse(blob)
-	// ... @TODO
+function populateMatches(blob) {
+	previousMatches = []
+	if (blob === "" || blob === null || blob === "null") {
+		blob = "[]"
+	}
+	try {
+		previousMatches = JSON.parse(blob)
+	} catch {
+		previousMatches = []
+	}
+	registeredMatches.clear()
+
+	for (let i = 0; i < previousMatches.length; i++) {
+		// to registeredMatches
+		registerMatch(previousMatches[i].Participants[0].UniqueName, previousMatches[i].Participants[1].UniqueName)
+	}
 }
 
-function isCohost(username) {
-	return cohosts[username]
+function populateMatchesToAvoid(blob) {
+	matchesToAvoid = []
+	if (blob === "" || blob == null || blob === "null") {
+		blob = "[]"
+	}
+	// format [][]string [['x', 'y'], ['a', 'b']]
+	try {
+		matchesToAvoid = JSON.parse(blob)
+	} catch {
+		matchesToAvoid = []
+	}
 }
 
-function makeMatches(availableParticipants) {
-	currentMatches = {}
+function isCohost(participant) {
+	return cohosts.get(participant.DisplayName) !== undefined
+}
 
-	while (availableParticipants.length > 2) {
-		console.log(logPrefix + 'Remaining available participants to match', availableParticipants.length);
+function makeMatches(assignableUsers) {
+	currentMatches = []
+	pendingMatches = new Map()
+
+	let availableParticipants = [...assignableUsers]
+
+	while (availableParticipants.length >= 2) {
+		console.log(logPrefix + 'Remaining available participants to match '+ availableParticipants.length);
 		let second = 1
 
-		let result = duplicateOrAvoid(availableParticipants[0], availableParticipants[second])
+		// shouldn't be necessary anymore
+		if (availableParticipants[0] === "") {
+  			availableParticipants.splice(0, 1);
+			  continue
+		}
+		if (availableParticipants[second] === "") {
+  			availableParticipants.splice(second, 1);
+			  continue
+		}
+		let firstParticipant = {DisplayName: availableParticipants[0], UniqueName: uniqueNameFromDisplayName(availableParticipants[0])}
+		let secondParticipant = {DisplayName: availableParticipants[second], UniqueName: uniqueNameFromDisplayName(availableParticipants[second])}
+
+		let result = duplicateOrAvoid(firstParticipant, secondParticipant)
 		let dup = result.duplicate
 		let avoid = result.avoid
+		let cohosts = result.cohosts
 
-		if (dup || avoid) {
-			console.log(logPrefix + "found a duplicate ("+dup+") avoid ("+avoid+") between "+availableParticipants[0]+" and "+ availableParticipants[second])
-		}
-		while ((dup || avoid) && (second <= availableParticipants.length-2)) { // -1 for index numbering and -1 for line 140
-			console.log(logPrefix + "trying to fix")
-			second++
-			result = duplicateOrAvoid(availableParticipants[0], availableParticipants[second])
-			dup = result.duplicate
-			avoid = result.avoid
-		}
+		if (!((cohosts === true) && (availableParticipants.length !== 2))) {
+			if (dup || avoid) {
+				console.log(logPrefix + "found a duplicate (" + dup + ") avoid (" + avoid + ") between " + availableParticipants[0] + " and " + availableParticipants[second])
+			}
+			while ((dup || avoid) && (second <= availableParticipants.length - 2)) { // -1 for index numbering and -1 for line 140
+				console.log(logPrefix + "trying to fix")
+				second++
+				secondParticipant = {
+					DisplayName: availableParticipants[second],
+					UniqueName: uniqueNameFromDisplayName(availableParticipants[second])
+				}
+				result = duplicateOrAvoid(firstParticipant, secondParticipant)
+				dup = result.duplicate
+				avoid = result.avoid
+			}
 
-		let avoided = true
-		if (dup || avoid) {
-			// if no non duplicate found by the end, start over at the beginning
-			let ok = replaceWithAnyNonduplicate(currentMatches, availableParticipants[0])
-			if (!ok) {
-				avoided = false
-				console.log(logPrefix + "Unable to avoid duplicate!")
-			} else {
-				dup = false
-				avoid = false
+			let avoided = true
+			if (dup || avoid) {
+				// if no non duplicate found by the end, start over at the beginning
+				let ok = replaceWithAnyNonduplicate(currentMatches, availableParticipants)
+				if (!ok) {
+					avoided = false
+					console.log(logPrefix + "Unable to avoid duplicate!")
+				} else {
+					dup = false
+					avoid = false
+					continue
+				}
 			}
 		}
 
-		if ((!dup && !avoid) || ((dup || avoid) && !avoided)) {
-			registerMatch(availableParticipants[0], availableParticipants[second]);
-			console.log(logPrefix + "Matching "+availableParticipants[0]+" and "+availableParticipants[second]+" ("+ second);
+		if ((!dup && !avoid) || (dup && !avoided)) {
+			registerMatch(firstParticipant.UniqueName, secondParticipant.UniqueName);
+			console.log(logPrefix + "Matching "+availableParticipants[0]+" and "+availableParticipants[second]+" ("+ second+")");
 			let m = {
 				Duplicate: dup,
-				Participants: [availableParticipants[0], availableParticipants[second]],
+				Participants: [firstParticipant, secondParticipant]
 			};
 			currentMatches.push(m);
-			delete availableParticipants[second];
-			availableParticipants.shift();
+  			availableParticipants.splice(second, 1);
+  			availableParticipants.splice(0, 1);
 		} else {
-			console.log(logPrefix + "FUCK!")
+			console.log(logPrefix + "Skipping participant because of avoid!")
+			availableParticipants.splice(0, 1);
 		}
 
 		if (availableParticipants.length === 1) {
-			if (!isCohost(availableParticipants[0])) {
+			firstParticipant = {DisplayName: availableParticipants[0], UniqueName: uniqueNameFromDisplayName(availableParticipants[0])}
+			if (!isCohost(firstParticipant.DisplayName)) {
 				console.log(logPrefix + "BAD! odd participant left out")
 				// switch odd participant with any cohost
 
-				let ok = replaceWithAnyCohost(currentMatches, availableParticipants[0])
+				let ok = replaceWithAnyCohost(currentMatches, firstParticipant)
 				if (!ok) {
 					console.log(logPrefix + "Well this is awkward... couldn't find a cohost to switch with the odd participant")
 				}
@@ -1392,49 +1150,85 @@ function makeMatches(availableParticipants) {
 	return true
 }
 
-function containsCohost(username) {
-	let lower = username.toLowerCase()
-	return lower.includes("cohost") ||
-		lower.includes("co-host") ||
-		lower.includes("co host");
+function uniqueNameFromDisplayName(displayName) {
+	let parts = displayName.split(" ")
+	let firstIndex = 0
+	let secondIndex = 1
+
+
+	for (let i = 0; i < parts.length; i++) {
+		let part = parts[i]
+
+		if (isPronoun(part) || isColor(part)) {
+			if (i === 0) {
+				firstIndex++
+				secondIndex++
+				continue
+			}
+			let concat = parts.slice(firstIndex, secondIndex).join(" ").trim()
+			if (concat === "") {
+				concat = displayName
+			}
+			return concat
+		}
+		secondIndex++
+	}
+	let concat = parts.slice(firstIndex, secondIndex).join(" ").trim()
+	if (concat === "") {
+		concat = displayName
+	}
+	return concat
 }
 
-/*
-* Fisher-Yates (aka Knuth) Shuffle.
- */
-function shuffle(array) {
-  let currentIndex = array.length,  randomIndex;
+function isColor(part) {
+	let lower = part.toLowerCase().trim()
+	switch (lower) {
+		case "r":
+		case "y":
+		case "g":
+			return true
+		default:
+			return false
+	}
+}
 
-  // While there remain elements to shuffle.
-  while (currentIndex !== 0) {
+function isPronoun(part) {
+	let lower = part.toLowerCase().trim()
+	if (lower.includes("/")) {
+		return true
+	}
+	if (lower.includes("(") || lower.includes(")")) {
+		return true
+	}
+	switch (lower) {
+		case "he":
+		case "him":
+		case "she":
+		case "her":
+		case "they":
+		case "them":
+			return true
+		default:
+			return false
+	}
 
-    // Pick a remaining element.
-    randomIndex = Math.floor(Math.random() * currentIndex);
-    currentIndex--;
-
-    // And swap it with the current element.
-    [array[currentIndex], array[randomIndex]] = [
-      array[randomIndex], array[currentIndex]];
-  }
-
-  return array;
 }
 
 /**
- * 
+ *
  * @return {Array} y Returns an array of objects representing users.
  */
 function getAllAssignableUsers() {
+
 	// Relies on clicking the first Assign button.
 	if (!assignButtons[0])
-		return;
+		return false;
 	assignButtons[0].click();
 
 	let x = document.getElementsByClassName(
 		'zmu-data-selector-item__text bo-room-assign-list-scrollbar__item-text'
 	);
 	if (x.length === 0) {
-		console.log(logPrefix + " Found zero in the room list")
 		//alert('(Zoomie) No assignable users!');
 		assignButtons[0].click(); // Close the box
 		return false;
@@ -1451,22 +1245,22 @@ function getAllAssignableUsers() {
 			continue
 		}
 		if (containsCohost(username) === true) {
-			cohosts.push(x[i].name)
+			cohosts.set(username, true)
 			if (lastCohost === "") {
-				lastCohost = x[i].name
+				lastCohost = username
 				continue
 			}
 		}
 
 		// Add an attribute for our purposes
-		y.push({
-			name: username
-		});
+		y.push(username)
 	}
 	assignButtons[0].click(); // unclick
 
 	let shuffled = shuffle(y);
-	shuffled.push(lastCohost)
+	if (lastCohost !== "") {
+		shuffled.push(lastCohost)
+	}
 	return shuffled;
 }
 
@@ -1502,22 +1296,12 @@ function getAllAssignButtons() {
 	let x = document.getElementsByClassName(
 		'zmu-btn bo-room-item-container__ghost-blue zmu-btn--ghost zmu-btn__outline--blue zmu-btn--sm'
 	);
-	// @TODO click "Add Room"
+	// @TODO click "Add Room" programmatically instead of requiring it manually
 	if (x.length === 0) {
 		alert('(Zoomie) No assignable buttons!');
 		return false;
 	}
 	return x;
-}
-
-function makeUserDict() {
-	userDict = {}; // reset
-	for (let i in assignableUsers) {
-		userDict[assignableUsers[i].name] = {
-			name: assignableUsers[i].name,
-			index: i
-		}
-	}
 }
 
 /**
