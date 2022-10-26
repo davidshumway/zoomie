@@ -877,10 +877,10 @@ function duplicateOrAvoid(firstParticipant, secondParticipant) {
 }
 
 // if no non duplicate found by the end, start over at the beginning
-function replaceWithAnyNonduplicate(matches, participants) {
+function replaceWithAnyNonduplicate(currentMatches, participants) {
 	let participant = {DisplayName: participants[0], UniqueName: uniqueNameFromDisplayName(participants[0])}
-	for (let i = 0; i < matches.length; i++) {
-		let match = matches[i]
+	for (let i = 0; i < currentMatches.length; i++) {
+		let match = currentMatches[i]
 		let result = duplicateOrAvoid(participant, match.Participants[1])
 		let dup = result.duplicate
 		let avoid = result.avoid
@@ -892,7 +892,7 @@ function replaceWithAnyNonduplicate(matches, participants) {
 			}
 			console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[1].DisplayName);
 			registerMatch(participant.UniqueName, match.Participants[1].UniqueName)
-			matches[i] = {
+			currentMatches[i] = {
 				Participants: [participant, match.Participants[1]],
 				Duplicate:    dup}
 			participants[0] = match.Participants[0].DisplayName
@@ -909,7 +909,7 @@ function replaceWithAnyNonduplicate(matches, participants) {
 			}
 			console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[0].DisplayName);
 			registerMatch(participant.UniqueName, match.Participants[0].UniqueName)
-			matches[i] = {
+			currentMatches[i] = {
 				Participants: [participant, match.Participants[0]],
 					Duplicate:    dup}
 			participants[0] = match.Participants[1].DisplayName
@@ -919,11 +919,11 @@ function replaceWithAnyNonduplicate(matches, participants) {
 	return false
 }
 
-function replaceWithAnyCohost(matches, participant) {
+function replaceWithAnyCohost(currentMatches, participant) {
 	console.log(logPrefix + "replaceWithAnyCohost: "+participant.DisplayName)
 	let lastFoundCohost = -1
-	for (let i = 0; i < matches.length; i++) {
-		let match = matches[i]
+	for (let i = 0; i < currentMatches.length; i++) {
+		let match = currentMatches[i]
 
 		if (isCohost(match.Participants[0])) {
 			let result = duplicateOrAvoid(participant, match.Participants[1])
@@ -941,7 +941,7 @@ function replaceWithAnyCohost(matches, participant) {
 				console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[1].DisplayName);
 				registerMatch(participant.UniqueName, match.Participants[1].UniqueName)
 
-				matches[i] = {
+				currentMatches[i] = {
 					Participants: [participant, match.Participants[1]],
 						Duplicate:    dup}
 				return true
@@ -963,7 +963,7 @@ function replaceWithAnyCohost(matches, participant) {
 				console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[0].DisplayName);
 				registerMatch(participant.UniqueName, match.Participants[0].UniqueName)
 
-				matches[i] = {
+				currentMatches[i] = {
 					Participants: [participant, match.Participants[0]],
 						Duplicate:    dup}
 				return true
@@ -972,7 +972,7 @@ function replaceWithAnyCohost(matches, participant) {
 	}
 
 	if (lastFoundCohost !== -1) {
-		let match = matches[lastFoundCohost]
+		let match = currentMatches[lastFoundCohost]
 		if (isCohost(match.Participants[0])) {
 			let result = duplicateOrAvoid(participant, match.Participants[1])
 			let dup = result.duplicate
@@ -986,7 +986,7 @@ function replaceWithAnyCohost(matches, participant) {
 				console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[1].DisplayName);
 				registerMatch(participant.UniqueName, match.Participants[1].UniqueName)
 
-				matches[lastFoundCohost] = {
+				currentMatches[lastFoundCohost] = {
 					Participants: [participant, match.Participants[1]],
 						Duplicate:    dup}
 				return true
@@ -1005,7 +1005,7 @@ function replaceWithAnyCohost(matches, participant) {
 				console.log(logPrefix + "Matching "+participant.DisplayName+" and "+match.Participants[0].DisplayName);
 				registerMatch(participant.UniqueName, match.Participants[0].UniqueName)
 
-				matches[lastFoundCohost] = {
+				currentMatches[lastFoundCohost] = {
 					Participants: [participant, match.Participants[1]],
 						Duplicate:    dup}
 				return true
@@ -1135,7 +1135,7 @@ function makeMatches(assignableUsers) {
 
 		if (availableParticipants.length === 1) {
 			firstParticipant = {DisplayName: availableParticipants[0], UniqueName: uniqueNameFromDisplayName(availableParticipants[0])}
-			if (!isCohost(firstParticipant.DisplayName)) {
+			if (!isCohost(firstParticipant)) {
 				console.log(logPrefix + "BAD! odd participant left out")
 				// switch odd participant with any cohost
 
