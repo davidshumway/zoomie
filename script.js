@@ -1063,6 +1063,7 @@ function isCohost(participant) {
 function makeMatches(assignableUsers) {
 	currentMatches = []
 	pendingMatches = new Map()
+	let giveUp = new Map()
 
 	let availableParticipants = [...assignableUsers]
 
@@ -1086,13 +1087,26 @@ function makeMatches(assignableUsers) {
 		let dup = result.duplicate
 		let avoid = result.avoid
 		let cohosts = result.cohosts
+		let avoided = false
+		let givingUp = false
 
 		if (!((cohosts === true) && (availableParticipants.length !== 2))) {
 			if (dup || avoid) {
 				console.log(logPrefix + "found a duplicate (" + dup + ") avoid (" + avoid + ") between " + availableParticipants[0] + " and " + availableParticipants[second])
 			}
-			while ((dup || avoid) && (second <= availableParticipants.length - 2)) { // -1 for index numbering and -1 for line 140
+			while ((dup || avoid || cohosts) && (second <= availableParticipants.length - 2) && !givingUp) { // -1 for index numbering and -1 for line 140
 				console.log(logPrefix + "trying to fix")
+				let attempted = giveUp.has(availableParticipants.length)
+				let value = 1
+				if (attempted) {
+					value = giveUp.get(availableParticipants.length) + 1
+				}
+				giveUp.set(availableParticipants.length, value)
+				if (!avoid && value >= (currentMatches.length + availableParticipants.length)) {
+					console.log(logPrefix + "giving up")
+					givingUp = true
+					break
+				}
 				second++
 				secondParticipant = {
 					DisplayName: availableParticipants[second],
@@ -1101,10 +1115,23 @@ function makeMatches(assignableUsers) {
 				result = duplicateOrAvoid(firstParticipant, secondParticipant)
 				dup = result.duplicate
 				avoid = result.avoid
+				cohosts = result.cohosts
 			}
 
-			let avoided = true
-			if (dup || avoid) {
+			avoided = true
+			if ((dup || avoid || cohosts) && !givingUp) {
+				let attempted = giveUp.has(availableParticipants.length)
+				let value = 1
+				if (attempted) {
+					value = giveUp.get(availableParticipants.length) + 1
+				}
+				giveUp.set(availableParticipants.length, value)
+				if (!avoid && value >= (currentMatches.length + availableParticipants.length)) {
+					console.log(logPrefix + "giving up")
+					givingUp = true
+					break
+				}
+
 				// if no non duplicate found by the end, start over at the beginning
 				let ok = replaceWithAnyNonduplicate(currentMatches, availableParticipants)
 				if (!ok) {
@@ -1118,7 +1145,7 @@ function makeMatches(assignableUsers) {
 			}
 		}
 
-		if ((!dup && !avoid) || (dup && !avoided)) {
+		if (givingUp || ((!dup && !avoid) || (dup && !avoided))) {
 			registerMatch(firstParticipant.UniqueName, secondParticipant.UniqueName);
 			console.log(logPrefix + "Matching "+availableParticipants[0]+" and "+availableParticipants[second]+" ("+ second+")");
 			let m = {
