@@ -4,7 +4,7 @@
 		"include_globs": [
 			"https://zoom.us/wc/*",
 			"https://*.zoom.us/wc/*",
-			"https://*.zoomgov.com/wc/*",
+			"https://*.zoomgov.com/wc/*"
 		],
 		"js": [ "script.js" ],
 		"matches": [ "<all_urls>" ],
