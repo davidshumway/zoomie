@@ -26,7 +26,7 @@ The extension is similar to Zoom's "Automatically" split participants into rooms
 
 The extension is meant to be run by the meeting host. Participants in the meeting do not have access to the Breakout Rooms button. Participants may use the browser or desktop versions of the Zoom client, as typical.
 
-Zoom includes a browser version of their video chat. The browser version of the Zoom video chat is available by navigating to the following web address: (https://web.zoom.us/wc/Zoom_Room_ID/start), replacing "Zoom_Room_ID" with your Zoom room ID. This link appears when starting a meeting from the user area on the Zoom website.
+Zoom includes a browser version of their video chat. The browser version of the Zoom video chat is available by navigating to the following web address: (https://web.zoom.us/wc/Zoom_Room_ID/start), replacing "Zoom_Room_ID" with your Zoom room ID. This link also appears when starting or joining a meeting from the browser.
 
 The extension adds a "Zoomie" button to the breakout rooms dialogue box, which may then be used to manage automating breakout rooms of two people over multiple rounds.
 
@@ -44,6 +44,10 @@ and finally select any file within the root directory of this repository.
 Suggestions welcome! Future work includes adding the option to select the number of users to include in each breakout room. At present, the number of users is set to two.
 
 # Version history
+
+0.1.3 - Dec. 2023
+- Fix for a few layout changes that caused the extension to stop working.
+- Include the domain zoomgov.com (https://github.com/davidshumway/zoomie/issues/9).
 
 0.1.2 - Feb. 2021
   
