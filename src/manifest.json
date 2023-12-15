@@ -3,14 +3,14 @@
 		"exclude_globs": [  ],
 		"include_globs": [
 			"https://zoom.us/wc/*",
-			"https://*.zoom.us/wc/*"
+			"https://*.zoom.us/wc/*",
+			"https://*.zoomgov.com/wc/*",
 		],
 		"js": [ "script.js" ],
-		"matches": [ "http://*/*", "https://*/*" ],
-		"run_at": "document_idle"
+		"matches": [ "<all_urls>" ],
+		"run_at": "document_idle",
+		"all_frames": true
 	} ],
-	"permissions": ["https://zoom.us/wc/*", "https://*.zoom.us/wc/*"],
-	"converted_from_user_script": true,
 	"description": "Zoom breakout room organizer for breaking into groups of two over multiple rounds with unique pairings.",
 	"name": "Zoomie",
 	"version": "0.1.2",

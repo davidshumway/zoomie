@@ -18,6 +18,8 @@
  * 		extension cache.
  */
 
+//~ console.log('Zoomie', window.location.href);
+
 /**
  * Global variables
  */
@@ -41,7 +43,7 @@ var au = [], // Assignable users
 	generatedPairs = false,
 	breakoutWindowOpen = false, // Tracks breakout dialog state (open/closed)
 	breakoutRoomsShowing = false // Track state
-	; 
+; 
 
 /**
  * Initialize the program.
@@ -50,7 +52,8 @@ function load() {
 	// Add css styles
 	add_styles()
 	
-	// Zoomie history pairings. Not required as of now.
+	// Zoomie history pairings.
+	// Not required as of now.
 	if (!localStorage['zoomie-history']) {
 		// Create new entry. An empty dict.
 		//~ localStorage['zoomie-history'] = '{}';
@@ -125,10 +128,8 @@ function add_styles() {
 	// Overwrites to zoom styles
 	
 	GM_addStyle('.common-window {border: 0 !important; box-shadow: none !important; -webkit-box-shadow: none !important;}'); 
-	
 	GM_addStyle('.ReactModal__Content {transform: none !important; top: 4% !important; left: 0 !important;}');
 	GM_addStyle('.ReactModal__Content--after-open {transform: none !important; top: 4% !important; left: 0 !important;}');
-	
 	GM_addStyle('#boRoomMgmtWindow {width: 98% !important; position: fixed !important; margin-left: 1%;}');
 }
 
@@ -139,14 +140,24 @@ function add_styles() {
 	//~ //
 //~ }
 
-// Set an interval to watch for boRoomMgmtWindow element to appear.
+// Set an interval to watch for createRoomWindow element to appear.
 // Once it appears, then add the Zoomie button.
-// Then, set another interval to check when the boRoomMgmtWindow
+// Then, set another interval to check when the createRoomWindow
 // disappears.
-window.setInterval(function() {
-	
+var x = setInterval(function() {
+	//~ console.log('--',window.location.href);
+	//~ if (window.location.href.indexOf('pwa') != -1) {
+		//~ alert('x');
+		//~ clearInterval(x);
+	//~ }
+	//console.log('xx',window.frames);
+	//~ console.log(document.body.innerHTML, document);
+	//~ clearInterval(x);
 	// Breakout window popup
+	//~ var x = document.getElementById('createRoomWindow');
 	var x = document.getElementById('boRoomMgmtWindow');
+	
+	//~ console.log(x);
 	if (x && !breakoutWindowOpen) {
 		// Attach the Zoomie button.
 		console.log(log + 'Breakout window opened');
@@ -164,7 +175,6 @@ window.setInterval(function() {
 		x[0].onclick = attachBreakoutContainer;
 	}
 }, 100);
-
 
 
 /**
@@ -195,7 +205,6 @@ function detachSettings() {
 
 /**
  * Attach the settings elements to the dialog box.
- * @param 
  */
 function attachSettings() {
 	
@@ -348,7 +357,8 @@ function attachBreakoutContainer() {
 	resetPairings(); 
 	setTimeout(resetPairings, 200);
 	setTimeout(resetPairings, 400);
-	setTimeout(resetPairings, 600);
+	setTimeout(resetPairings, 1200);
+  
 	
 	// Add listener to "Open All Rooms" button but only if it exists.
 	if (!attachOpenAllRooms()) {
@@ -359,47 +369,35 @@ function attachBreakoutContainer() {
 	// Gets height of window to work with.
 	getBreakoutRoomHeight();
 	
-	// Remove button if exists.
+	// Remove "Zoomie Settings" button if it exists.
 	if (elements.autoButton) {
 		try {
 			elements.autoButton.parentNode.removeChild(elements.autoButton);
 			elements.autoButton = null;
 		} catch(e) {
-			console.log(log + 'Could not remove autoButton');
 		}
 	}
 	
-	// An "auto"-pair button that can be clicked any number
-	// of times, continuously randomly permutating the 
-	// people into breakout rooms of size=2.
 	var z = document.createElement('button');
 	y[0].insertBefore(z, y[0].firstChild);
 	z.innerHTML = 'Zoomie Settings';
 	z.onclick = showIgnoreUsersSelect;
 	z.className = 
 		'zmu-btn bo-bottom-btn zmu-btn--default zmu-btn__outline--blue';
-		// Changed Feb. 2021
-		//'zmu-btn zm-btn-legacy zmu-btn--default zmu-btn__outline--blue';
 	z.style.marginRight = '10px';
-	elements.autoButton = z;
-	
+	elements.autoButton = z;	
 }
 
 /**
  * Perform an action when Open All Rooms is clicked.
- * 
- * Update (Feb. 2021): Button class updated.
  * 
  * @return: Boolean True if listener was added to "Open All Rooms" button.
  */
 function attachOpenAllRooms() {
 	var x = document.getElementsByClassName(
 		'zmu-btn bo-bottom-btn zmu-btn--primary zmu-btn__outline--blue'
-		// prior to Feb. 2021
-		// 'zmu-btn zm-btn-legacy bottom-btn zmu-btn--primary zmu-btn__outline--blue'
 	);
 	if (x[0]) {
-		// Update July 2020: Zoom added a second button with same class name.
 		for (var i=0; i<x.length; i++) {
 			if (x[i].innerText.trim() == 'Open All Rooms') {
 				x[i].addEventListener('click', updatePairingsFinal, false);
@@ -420,7 +418,6 @@ function attachCloseAllRooms() {
 		'zmu-btn zmu-btn--danger zmu-btn__outline--blue'
 	);
 	if (x[0]) {
-		// Update July 2020: Zoom added a second button with same class name.
 		for (var i=0; i<x.length; i++) {
 			if (x[i].innerText.trim() == 'Close All Rooms') {
 				x[i].addEventListener('click', closeAllRooms, false);
@@ -431,7 +428,7 @@ function attachCloseAllRooms() {
 			}
 		}
 	} else {
-		console.log(log + 'Missing "Close all rooms" button!');
+		console.log(log, 'Missing "Close all rooms" button!');
 		setTimeout(attachCloseAllRooms, 1000);
 	}
 }
@@ -443,7 +440,6 @@ function autoCloseRooms() {
 		'zmu-btn zmu-btn--danger zmu-btn__outline--blue'
 	);
 	if (x[0]) {
-		// Update July 2020: Zoom added a second button with same class name.
 		for (var i=0; i<x.length; i++) {
 			if (x[i].innerText.trim() == 'Close All Rooms') {
 				x[i].click();
@@ -679,7 +675,6 @@ function makeRoundRobinPairings(players) {
   return tournamentPairings;
 }
 
-
 /**
  * Hide & cancel
  */
@@ -688,8 +683,7 @@ function cancelIgnoreUsersSelect() {
 	// Show the default dialogs
 	try {
 		document.getElementsByClassName('window-content')[0].style.display = '';
-	} catch(e) {
-		
+	} catch(e) {		
 	}
 }
 /**
@@ -701,8 +695,7 @@ function hideIgnoreUsersSelect() {
 	// Show the default dialogs
 	try {
 		document.getElementsByClassName('window-content')[0].style.display = '';
-	} catch(e) {
-		
+	} catch(e) {		
 	}
 }
 /**
@@ -720,6 +713,7 @@ function addToRooms() {
 	// Sanity check. No pairs (e.g., none or one user present).
 	if (!generatedPairs || !pairs) {
 		// Exit silently.
+		console.log(log, 'no pairs', generatedPairs, pairs);
 		return; 
 	}
 	// Sanity check. If there aren't enough rooms, then quit right off.
@@ -729,24 +723,25 @@ function addToRooms() {
 		alert('Please create more breakout rooms. There are not enough rooms for every pair of participants.');
 		return; 
 	}
-	
+	console.log(log, 'pairs:', pairs);
+  
 	// Loop to add to rooms
 	for (var i in pairs) {
 		var p = pairs[i];
 		if (p.p1 == null || p.p2 == null) continue; // Leave out solos
-		// Made it past nulls. Open "Assign" dialog box.
+		// Made it past non-participants. Open "Assign" dialog box.
 		ab[roomNo].click();
 		// Loops through checkboxes.
 		var x = document.getElementsByClassName(
-			'zmu-data-selector-item'
+      'zmu-data-selector-item__checkbox'
 		);
 		for (var k=0; k<x.length; k++) {
-			if (x[k].innerText == p.p1
-			 || x[k].innerText == p.p2) {
+			if (x[k].parentNode.parentNode.getAttribute('aria-label') == p.p1
+			 || x[k].parentNode.parentNode.getAttribute('aria-label') == p.p2) {
 				x[k].click();
 			}
 		}
-		ab[roomNo].click(); // Unclick/Close
+		ab[roomNo].click(); // Close dialog
 		roomNo++;
 	}
 	
@@ -766,11 +761,13 @@ function showIgnoreUsersSelect() {
 	// Update global user data.
 	ab = getAllAssignButtons();
 	if (!ab) { // silent fail after user alert
+    console.log(log, '!ab');
 		//return;
 	}
 	au = getAllAssignableUsers();
 	if (!au) { // silent fail after user alert
 		//return;
+    console.log(log, '!au');
 	}
 	
 	// Update makeUserDict
@@ -810,11 +807,10 @@ function showIgnoreUsersSelect() {
 	// Users
 	addUserSelect();
 	
-	// Hide the background dialogs
+	// Hide background dialogs
 	try {
 		document.getElementsByClassName('window-content')[0].style.display = 'none';
-	} catch(e) {
-		
+	} catch(e) {	
 	}
 }
 
@@ -838,17 +834,21 @@ function closeAssignPopups() {
 		}
 	}
 }
-
+/**
+ * Go through every room and remove any users in the room.
+ */
 function resetPairings() {
-	// Go through every room and remove any users in the room.
+	// Start by updating the assign buttons.
+  // By default, Zoom places the host in the first breakout room when 
+  // the page reloads.
+  ab = getAllAssignButtons(); 
 	for (var i=0; i<ab.length; i++) {
 		ab[i].click(); // Open dialog
 		var x = document.getElementsByClassName(
 			'zmu-data-selector-item__checkbox zmu-data-selector-item__checkbox--checked'
 		);
 		for (var k=x.length-1; k>=0; k--) {
-			//~ console.log('removing user from room');
-			x[k].click(); // Unclick the user.
+			x[k].click(); // Uncheck the user.
 		}
 		ab[i].click(); // Close dialog
 	}
@@ -860,8 +860,10 @@ function resetPairings() {
  */
 function getAllAssignableUsers() {
 	// Relies on clicking the first Assign button.
-	if (!ab[0])
+	if (!ab[0]) {
+    console.log(log, '!ab[0]', ab);
 		return;
+  }
 	ab[0].click();
 	
 	//au = []; // Reset array.
@@ -869,7 +871,7 @@ function getAllAssignableUsers() {
 		'zmu-data-selector-item__text bo-room-assign-list-scrollbar__item-text'
 	);
 	if (x.length == 0) {
-		//alert('(Zoomie) No assignable users!');
+		// No assignable users
 		ab[0].click(); // Close the box
 		return false;
 	}
@@ -880,10 +882,10 @@ function getAllAssignableUsers() {
 			name: x[i].innerText.trim()
 		});
 	}
-	ab[0].click(); // unclick
+	ab[0].click(); // Uncheck
 	
 	// Before returning, sort alphabetical.
-	// This is a quick hack for the following issue:
+	// This is a quick solution for the following issue:
 	//  Users are ordered in the "Assign" section by when they
 	//  join the meeting. But each time the users return from a 
 	//  breakout session, they join the meeting in a different order
@@ -899,10 +901,12 @@ function getAllAssignableUsers() {
 		if(a.name > b.name) { return 1; }
 		return 0;
 	});
-	//~ console.log('y', y);
 	
 	return y;
 }
+/**
+ * @return HTMLCollection of found elements.
+ */
 function getAllAssignButtons() {
 	var x = document.getElementsByClassName(
 		'zmu-btn bo-room-item-container__ghost-blue zmu-btn--ghost zmu-btn__outline--blue zmu-btn--sm'
