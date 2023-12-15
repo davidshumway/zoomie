@@ -154,8 +154,7 @@ var x = setInterval(function() {
 		x.zoomie_mark = 1;
 		x[0].onclick = attachBreakoutContainer;
 	}
-}, 100);
-
+}, 200);
 
 /**
  * Retrieve breakout room dialog box height.
