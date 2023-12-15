@@ -28,6 +28,8 @@ The extension is meant to be run by the meeting host. Participants in the meetin
 
 Zoom includes a browser version of their video chat. The browser version of the Zoom video chat is available by navigating to the following web address: (https://web.zoom.us/wc/Zoom_Room_ID/start), replacing "Zoom_Room_ID" with your Zoom room ID. This link also appears when starting or joining a meeting from the browser.
 
+![image](https://github.com/davidshumway/zoomie/assets/3892695/d6488741-82a8-47e1-a7a9-2878bc962eb9)
+
 The extension adds a "Zoomie" button to the breakout rooms dialogue box, which may then be used to manage automating breakout rooms of two people over multiple rounds.
 
 The extension was created by David Shumway, a PhD student at University of Illinois at Chicago, for use by the Trillium Awakening Teachers Circle (https://www.trilliumawakening.org/). The extension is open-source and may be used by any group or individual.
