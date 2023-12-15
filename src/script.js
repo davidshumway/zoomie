@@ -18,8 +18,6 @@
  * 		extension cache.
  */
 
-//~ console.log('Zoomie', window.location.href);
-
 /**
  * Global variables
  */
@@ -125,39 +123,21 @@ function add_styles() {
 	GM_addStyle('.zoomieSeconds {background-color: #efefef; border-bottom: 1px solid blue; cursor: pointer; width: 100%; height: 48px; padding: 6px;}');
 	GM_addStyle('.zoomieSecondsInput {cursor: pointer; width: 60px; zoom: 1.2; border-radius: 8px; padding-left: 4px; text-align: center;}');
 	
-	// Overwrites to zoom styles
-	
+	// Overwrite zoom styles
 	GM_addStyle('.common-window {border: 0 !important; box-shadow: none !important; -webkit-box-shadow: none !important;}'); 
 	GM_addStyle('.ReactModal__Content {transform: none !important; top: 4% !important; left: 0 !important;}');
 	GM_addStyle('.ReactModal__Content--after-open {transform: none !important; top: 4% !important; left: 0 !important;}');
 	GM_addStyle('#boRoomMgmtWindow {width: 98% !important; position: fixed !important; margin-left: 1%;}');
 }
 
-//~ /**
- //~ * Wait for "Breakout Rooms" button to appear, then attach an event to it.
- //~ */
-//~ function getBreakoutButton() {
-	//~ //
-//~ }
-
 // Set an interval to watch for createRoomWindow element to appear.
 // Once it appears, then add the Zoomie button.
 // Then, set another interval to check when the createRoomWindow
 // disappears.
 var x = setInterval(function() {
-	//~ console.log('--',window.location.href);
-	//~ if (window.location.href.indexOf('pwa') != -1) {
-		//~ alert('x');
-		//~ clearInterval(x);
-	//~ }
-	//console.log('xx',window.frames);
-	//~ console.log(document.body.innerHTML, document);
-	//~ clearInterval(x);
 	// Breakout window popup
-	//~ var x = document.getElementById('createRoomWindow');
 	var x = document.getElementById('boRoomMgmtWindow');
 	
-	//~ console.log(x);
 	if (x && !breakoutWindowOpen) {
 		// Attach the Zoomie button.
 		console.log(log + 'Breakout window opened');
