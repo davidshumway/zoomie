@@ -11,9 +11,9 @@
  *
  * Notes:
  *  - For debugging purposes, you can mimic breakout rooms functionality
- * 		on a "basic" account by enabling
+ *        on a "basic" account by enabling
  *      `MeetingConfig.meetingOptions.isEnableBreakoutRoom = true'
- * 		in the browser console.
+ *        in the browser console.
  */
 
 /**
@@ -144,22 +144,22 @@ function add_styles() {
 // disappears.
 window.setInterval(function () {
 	// Breakout window popup
-	let a = document.getElementById('boRoomMgmtWindow');
-	if (a && !breakoutWindowOpen) {
+	let breakoutWindowPopup = document.getElementById('boRoomMgmtWindow');
+	if (breakoutWindowPopup && !breakoutWindowOpen) {
 		// Attach the Zoomie button.
 		console.log(logPrefix + 'Breakout window opened');
 		breakoutWindowOpen = true;
 		setTimeout(attachBreakoutContainer, 200);
-	} else if (!a && breakoutWindowOpen) {
+	} else if (!breakoutWindowPopup && breakoutWindowOpen) {
 		// Reset the breakoutWindowOpen boolean.
 		breakoutWindowOpen = false;
 	}
 
 	// "Recreate" button popup
-	let b = document.getElementsByClassName('recreate-paper__footer');
-	if (b && b.length === 1 && !b[0].zoomie_mark) {
-		b.zoomie_mark = 1;
-		b[0].onclick = attachBreakoutContainer;
+	let recreateButtonPopup = document.getElementsByClassName('recreate-paper__footer');
+	if (recreateButtonPopup && recreateButtonPopup.length === 1 && !recreateButtonPopup[0].zoomie_mark) {
+		recreateButtonPopup.zoomie_mark = 1;
+		return [0].onclick = attachBreakoutContainer;
 	}
 }, 1000);
 
@@ -172,15 +172,11 @@ window.onresize = function () {
 }
 
 function getBreakoutRoomHeight() {
-	let x = document.getElementsByClassName('bo-mgmtwindow-content');
-	if (x && x[0] && x[0].style) {
+	let breakoutManager = document.getElementsByClassName('bo-mgmtwindow-content');
+	if (breakoutManager && breakoutManager[0] && breakoutManager[0].style) {
 		breakoutRoomHeight = parseInt(
-			x[0].style.height.replace('px', '')
+			breakoutManager[0].style.height.replace('px', '')
 		);
-	}
-	if (elements.userIgnoreSelect) {
-		//~ elements.userIgnoreSelect.style.height = (breakoutRoomHeight-80) + 'px';
-		//~ elements.userIgnoreSelectAccept.style.marginTop = (breakoutRoomHeight-80) + 'px';
 	}
 }
 
@@ -194,7 +190,7 @@ function detachSettings() {
 /**
  * Attach the settings elements to the dialog box.
  */
-function attachZoomie() {
+async function attachZoomie() {
 	////////////////////////////////////////////////////////////////
 	// Dialog container
 	////////////////////////////////////////////////////////////////
@@ -286,7 +282,7 @@ function attachZoomie() {
 	z.setAttribute('style', 'z-index:1002;display:none;margin-left: 4px;');
 	z.className = 'btn btn-primary';
 	z.innerText = 'Cancel';
-	z.onclick = cancelIgnoreUsersSelect;
+	z.onclick = cancelMatchesReview;
 	elements.okayButtonDiv.appendChild(z);
 	elements.userIgnoreSelectCancel = z;
 }
@@ -370,7 +366,6 @@ function attachZoomieSettings() {
  * After user clicks "Breakout Rooms" button, adds "Zoomie".
  */
 function attachBreakoutContainer() {
-
 	// Check footer exists
 	let y = document.getElementsByClassName(
 		//'bo-mgmtwindow-content__footer'
@@ -383,10 +378,9 @@ function attachBreakoutContainer() {
 	}
 
 	// Remove any users from rooms
-	resetPairings();
-	setTimeout(resetPairings, 200);
-	setTimeout(resetPairings, 400);
-	setTimeout(resetPairings, 600);
+	setTimeout(() => {
+		resetPairings();
+	}, 0);
 
 	// Add listener to "Open All Rooms" button but only if it exists.
 	if (!attachOpenAllRooms()) {
@@ -433,7 +427,7 @@ function attachBreakoutContainer() {
 	z = document.createElement('button');
 	y[0].insertBefore(z, y[0].firstChild);
 	z.innerHTML = 'Zoomie';
-	z.onclick = showIgnoreUsersSelect;
+	z.onclick = showMatchesReview;
 	z.className =
 		'zmu-btn bo-bottom-btn zmu-btn--default zmu-btn__outline--blue';
 	// Changed Feb. 2021
@@ -450,16 +444,17 @@ function attachBreakoutContainer() {
  * @return: Boolean True if listener was added to "Open All Rooms" button.
  */
 function attachOpenAllRooms() {
-	let x = document.getElementsByClassName(
+	let openAllRoomsButton = document.getElementsByClassName(
 		'zmu-btn bo-bottom-btn zmu-btn--primary zmu-btn__outline--blue'
 		// prior to Feb. 2021
 		// 'zmu-btn zm-btn-legacy bottom-btn zmu-btn--primary zmu-btn__outline--blue'
 	);
-	if (x[0]) {
+
+	if (openAllRoomsButton[0]) {
 		// Update July 2020: Zoom added a second button with same class name.
-		for (let i = 0; i < x.length; i++) {
-			if (x[i].innerText.trim() === 'Open All Rooms') {
-				x[i].addEventListener('click', updatePairingsFinal, false);
+		for (let i = 0; i < openAllRoomsButton.length; i++) {
+			if (openAllRoomsButton[i].innerText.trim() === 'Open All Rooms') {
+				openAllRoomsButton[i].addEventListener('click', updatePairingsFinal, false);
 				return true;
 			}
 		}
@@ -471,14 +466,14 @@ function attachOpenAllRooms() {
  * Fire events when Open All Rooms is clicked.
  */
 function attachCloseAllRooms() {
-	let x = document.getElementsByClassName(
+	let closeAllRoomsButton = document.getElementsByClassName(
 		'zmu-btn zmu-btn--danger zmu-btn__outline--blue'
 	);
-	if (x[0]) {
+	if (closeAllRoomsButton[0]) {
 		// Update July 2020: Zoom added a second button with same class name.
-		for (let i = 0; i < x.length; i++) {
-			if (x[i].innerText.trim() === 'Close All Rooms') {
-				x[i].addEventListener('click', closeAllRooms, false);
+		for (let i = 0; i < closeAllRoomsButton.length; i++) {
+			if (closeAllRoomsButton[i].innerText.trim() === 'Close All Rooms') {
+				closeAllRoomsButton[i].addEventListener('click', closeAllRooms, false);
 				// If there is an "auto-close" set, then use it now.
 				setTimeout(autoCloseRooms,
 					parseInt(localStorage['zoomie-closeTime']) * 1000);
@@ -495,14 +490,14 @@ function attachCloseAllRooms() {
  *
  */
 function autoCloseRooms() {
-	let x = document.getElementsByClassName(
+	let closeAllRoomsButton = document.getElementsByClassName(
 		'zmu-btn zmu-btn--danger zmu-btn__outline--blue'
 	);
-	if (x[0]) {
+	if (closeAllRoomsButton[0]) {
 		// Update July 2020: Zoom added a second button with same class name.
-		for (let i = 0; i < x.length; i++) {
-			if (x[i].innerText.trim() === 'Close All Rooms') {
-				x[i].click();
+		for (let i = 0; i < closeAllRoomsButton.length; i++) {
+			if (closeAllRoomsButton[i].innerText.trim() === 'Close All Rooms') {
+				clickButtonWithTimeout(closeAllRoomsButton[i]);
 				break;
 			}
 		}
@@ -517,7 +512,6 @@ function sleep(ms) {
  * User accepted pairings and opened rooms, so finalize pairs list.
  */
 async function updatePairingsFinal() {
-
 	// Remove the -Auto- button.
 	elements.autoButton.parentNode.removeChild(elements.autoButton);
 
@@ -541,26 +535,26 @@ async function updatePairingsFinal() {
 	//	console.log(logPrefix+"...30s...")
 	//}
 	let footer = document.getElementsByClassName(
-		"bo-room-in-progress-footer"
+	    "bo-room-in-progress-footer"
 	)[0];
 	let broadcast = footer.getElementsByClassName(
-		"bo-room-in-progress-footer__btn-broadcast"
+	    "bo-room-in-progress-footer__btn-broadcast"
 	)[0];
 	broadcast.click();
 	console.log(logPrefix+"#1")
 
 	let broadcastMessage = footer.getElementsByClassName(
-		"zmu-btn broadcastclassNameon-paper__btn zmu-btn--ghost zmu-btn__outline--blue"
+	    "zmu-btn broadcastclassNameon-paper__btn zmu-btn--ghost zmu-btn__outline--blue"
 	)[0];
 	broadcastMessage.click();
 	console.log(logPrefix+"#2")
 	let textArea = footer.getElementsByClassName(
-		"bmaxLengthoadcastclassNamel__textarea"
+	    "bmaxLengthoadcastclassNamel__textarea"
 	)[0];
 	textArea.value = "H A L F W A Y   T H R O U G H !! :^)"
 	console.log(logPrefix+"#3 filled")
 	let send = footer.getElementsByClassName(
-		"bo-room-broadcast-panel__send-btn"
+	    "bo-room-broadcast-panel__send-btn"
 	)[0];
 	send.click();
 	console.log(logPrefix+"#4")
@@ -576,9 +570,9 @@ function closeAllRooms() {
 }
 
 /**
- * Add checkboxes and radios to ignore or make users the odd-number user.
+ * Display BO matches for review
  */
-function addUserSelect() {
+async function addMatchesReview() {
 	let div = elements.userIgnoreSelectList;
 	div.innerHTML = '';
 
@@ -618,7 +612,7 @@ function addUserSelect() {
 /**
  * Hide & cancel
  */
-function cancelIgnoreUsersSelect() {
+function cancelMatchesReview() {
 	detachSettings();
 	// Show the default dialogs
 	try {
@@ -631,7 +625,7 @@ function cancelIgnoreUsersSelect() {
 /**
  * Hide ignore users dialog box and run the pairing program.
  */
-function hideIgnoreUsersSelect() {
+function hideMatchesReview() {
 	detachSettings();
 
 	// Show the default dialogs
@@ -645,9 +639,9 @@ function hideIgnoreUsersSelect() {
 /**
  *
  */
-function addToRooms() {
+async function addToRooms() {
 	// hide the zoomie select dialog
-	hideIgnoreUsersSelect();
+	hideMatchesReview();
 
 	// add users to rooms
 	//let r = parseInt(localStorage['zoomie-roundNumber']);
@@ -671,21 +665,55 @@ function addToRooms() {
 		let p = currentMatches[i].Participants;
 		if (p[0].DisplayName === null || p[1].DisplayName === null) continue; // Leave out solos
 		// Made it past nulls. Open "Assign" dialog box.
-		assignButtons[roomNo].click();
 		// Loops through checkboxes.
-		let x = document.getElementsByClassName(
-			'zmu-data-selector-item__text'
-		);
-		for (let k = 0; k < x.length; k++) {
-			if (x[k].innerText === p[0].DisplayName
-				|| x[k].innerText === p[1].DisplayName) {
-				x[k].click();
-			}
-		}
-		assignButtons[roomNo].click(); // Unclick/Close
+		// this finds all of the checkboxes, regardless of which popup they belong to
+		assignPairToBORoom(p, roomNo);
 		roomNo++;
 	}
 
+}
+
+async function assignPairToBORoom(pair, roomNo) {
+//	setTimeout(() => {
+//		assignButtons[roomNo].click();
+//	}, 0);
+	// menu already open
+	setTimeout(() => {
+		findPair(pair);
+	}, 0);
+	setTimeout(() => {
+		assignButtons[roomNo].click(); // Unclick/Close
+	}, 0);
+}
+
+async function findPair(pair) {
+	let availableParticipants = document.getElementsByClassName(
+		//'zmu-data-selector-item__icon-text-wrapper zmu-data-selector-item__icon-text-wrapper--has-checkbox'
+		//'zmu-data-selector-item'
+		//'zmu-data-selector-item__text'
+		'zmu-data-selector-item__text bo-room-assign-list-scrollbar__item-text'
+		//'zmu-data-selector-item__checkbox'
+	);
+	console.log(logPrefix + "findPair: num avail part " + availableParticipants.length);
+
+	for (let k = 0; k < availableParticipants.length; k++) {
+		if (availableParticipants[k].innerText === pair[0].DisplayName
+			|| availableParticipants[k].innerText === pair[1].DisplayName) {
+			console.log(logPrefix + "findPair: clicking user checkbox " + k);
+			asyncClick(availableParticipants[k]);
+		}
+	}
+}
+
+async function asyncClick(element) {
+	element.click();
+}
+
+// @TODO eliminate
+async function clickButtonWithTimeout(element) {
+	setTimeout(() => {
+		element.click();
+	}, 0);
 }
 
 /**
@@ -703,51 +731,53 @@ function closeZoomieSettings() {
 }
 
 /**
- * Show ignore users dialog box.
+ * The brains
  */
-function showIgnoreUsersSelect() {
+async function showMatchesReview() {
 	// Close any popup dialog boxes that are opened when user clicks
 	// any of the "Assign" buttons.
-	closeAssignPopups();
+	setTimeout(() => {
+		closeAssignPopups();
+	}, 0);
 
 	// Remove any users from rooms, then populate the users field.
-	resetPairings();
+	setTimeout(() => {
+		resetPairings(); // maybe a timeout
+	}, 0);
 
 	// Update global user data.
-	assignButtons = getAllAssignButtons();
-	if (!assignButtons) { // silent fail after user alert
-		//return;
-	}
-	assignableUsers = getAllAssignableUsers();
-	if (!assignableUsers) { // silent fail after user alert
-		//return;
-	}
+	setTimeout(() => {
+		assignButtons = getAllAssignButtons();
+		if (assignButtons[0]) {
+			initializeAssignableUsers();
+		}
+	}, 10);
+	setTimeout(() => {
+		// Generate pairs if new run.
+		// currentMatches = makeRoundRobinPairings(assignableUsers);
+		generatedPairs = makeMatches(assignableUsers)
+		console.log(logPrefix + "currentMatches " + currentMatches.length)
 
-	// Generate pairs if new run.
-	// currentMatches = makeRoundRobinPairings(assignableUsers);
-	generatedPairs = makeMatches(assignableUsers)
-	console.log(logPrefix + "currentMatches " + currentMatches.length)
+		// Attach the elements
+		attachZoomie(); // Create the elements.
+		elements.userIgnoreSelectTitle.className = 'zoomie-ignoreUsersTitle zoomie-show';
+		elements.ignoreContainer.className = 'zoomie-ignoreContainer zoomie-show';
+		elements.userIgnoreSelect.style.display = '';
+		elements.userIgnoreSelectAccept.style.display = '';
+		elements.autoCloseDiv.style.display = '';
+		elements.userIgnoreSelectList.style.display = '';
+		elements.okayButtonDiv.style.display = '';
+		elements.userIgnoreSelectCancel.style.display = '';
+		// Users
+		addMatchesReview();
 
-	// Attach the elements
-	attachZoomie(); // Create the elements.
-	elements.userIgnoreSelectTitle.className = 'zoomie-ignoreUsersTitle zoomie-show';
-	elements.ignoreContainer.className = 'zoomie-ignoreContainer zoomie-show';
-	elements.userIgnoreSelect.style.display = '';
-	elements.userIgnoreSelectAccept.style.display = '';
-	elements.autoCloseDiv.style.display = '';
-	elements.userIgnoreSelectList.style.display = '';
-	elements.okayButtonDiv.style.display = '';
-	elements.userIgnoreSelectCancel.style.display = '';
-
-	// Users
-	addUserSelect();
-
-	// Hide the background dialogs
-	try {
-		document.getElementsByClassName('window-content')[0].style.display = 'none';
-	} catch (e) {
-
-	}
+		// Hide the background dialogs
+		try {
+			document.getElementsByClassName('window-content')[0].style.display = 'none';
+		} catch (e) {
+			console.log(logPrefix + e)
+		}
+	}, 20);
 }
 
 /**
@@ -759,7 +789,9 @@ function showZoomieSettings() {
 	closeAssignPopups();
 
 	// Remove any users from rooms, then populate the users field.
-	resetPairings();
+	setTimeout(() => {
+		resetPairings();
+	}, 0);
 
 	// Attach the elements
 	attachZoomieSettings(); // Create the elements.
@@ -770,7 +802,7 @@ function showZoomieSettings() {
 	elements.zoomieSettingButtonDiv.style.display = '';
 
 	// Users
-	// addUserSelect();
+	// addMatchesReview();
 
 	// Hide the background dialogs
 	try {
@@ -784,39 +816,60 @@ function showZoomieSettings() {
 /**
  * Closes all Assign button popups before running auto-assign.
  */
-function closeAssignPopups() {
+const visibleParticipantsPopUpClass1 = 'zmu-tooltip-zmu-paper'
+const visibleParticipantsPopUpClass2 = 'bo-room-assign-list-scrollbar'
+
+async function closeAssignPopups() {
 	let a = document.getElementsByClassName(
 		'zmu-btn bo-room-item-container__ghost-blue zmu-btn--ghost ' +
 		'zmu-btn__outline--blue zmu-btn--sm'
 	);
-	let x = document.getElementsByClassName('zmu-tooltip__container');
+	// zmu-data-selector
+	// zmu-data-selector-item
+
+	// alternative classes to try
+	// 'zmu-tooltip__container'
+	let x = document.getElementsByClassName(visibleParticipantsPopUpClass2);
+	console.log(logPrefix + "cap: containers found 0: " + x.length);
 	for (let i = 0; i < x.length; i++) {
+		// all of the containers are there all of the time, but most are not visible
 		if (x[i].innerHTML !== '') {
 			// Typically only one opened at a time.
 			// Thus, could break here.
 			// But for the sake of completeness, it's worth it to
 			// assume that in some case two dialog popups would
 			// be open simultaneously.
-			a[i].click();
+			console.log(logPrefix + "cap: clicking a button");
+			clickButtonWithTimeout(a[i]); // how long does this fucking take to work? does it ever work?
 		}
 	}
 }
 
-function resetPairings() {
+async function resetPairings() {
 	currentMatches = []
 	pendingMatches = new Map()
 
 	// Go through every room and remove any users in the room.
 	for (let i = 0; i < assignButtons.length; i++) {
-		assignButtons[i].click(); // Open dialog
-		let x = document.getElementsByClassName(
-			'zmu-data-selector-item__checkbox zmu-data-selector-item__checkbox--checked'
-		);
-		for (let k = x.length - 1; k >= 0; k--) {
-			//~ console.log('removing user from room');
-			x[k].click(); // Unclick the user.
-		}
-		assignButtons[i].click(); // Close dialog
+		setTimeout(() => {
+			assignButtons[i].click(); //open dialog
+		}, 0);
+		setTimeout(() => {
+			removeAllParticipantsFromBORoom()
+		}, 0);
+		setTimeout(() => {
+			assignButtons[i].click(); // Close dialog
+		}, 0);
+	}
+}
+
+async function removeAllParticipantsFromBORoom() {
+	let x = document.getElementsByClassName(
+		'zmu-data-selector-item__checkbox zmu-data-selector-item__checkbox--checked'
+	);
+	for (let k = x.length - 1; k >= 0; k--) {
+		//~ console.log('removing user from room');
+		await asyncClick(x[k]); // Unclick the user.
 	}
 }
 
@@ -1265,64 +1318,62 @@ function isPronoun(part) {
 
 }
 
-/**
- *
- * @return {Array} y Returns an array of objects representing users.
- */
-function getAllAssignableUsers() {
-
-	// Relies on clicking the first Assign button.
-	if (!assignButtons[0])
-		return false;
-	assignButtons[0].click();
-
-	let x = document.getElementsByClassName(
-		'zmu-data-selector-item__text bo-room-assign-list-scrollbar__item-text'
-	);
-	if (x.length === 0) {
-		//alert('(Zoomie) No assignable users!');
-		assignButtons[0].click(); // Close the box
-		return false;
-	}
-
-	asterisksUsers.clear()
-	let y = [];
-	let lastCohost = "";
-	for (let i = 0; i < x.length; i++) {
-		let username = x[i].innerText.trim()
-		let skip = username.includes("***")
-		if (skip) {
-			asterisksUsers.set(username, true)
-			continue
-		}
-		if (containsCohost(username) === true) {
-			cohosts.set(username, true)
-			continue
+async function initializeAssignableUsers() {
+	setTimeout(() => {
+		assignButtons[0].click();
+	}, 0);
+	setTimeout(() => {
+		assignableUsers = []
+		let x = document.getElementsByClassName(
+			'zmu-data-selector-item__text bo-room-assign-list-scrollbar__item-text'
+		);
+		console.log("IAU: found available parts num: " + x.length)
+		if (x.length === 0) {
+			//alert('(Zoomie) No assignable users!');
+			//closeAssignPopups()
+			assignButtons[0].click(); // Close the box
+			return false;
 		}
 
-		// Add an attribute for our purposes
-		y.push(username)
-	}
-	assignButtons[0].click(); // unclick
+		asterisksUsers.clear()
+		let lastCohost = "";
+		for (let i = 0; i < x.length; i++) {
+			let username = x[i].innerText.trim()
+			let skip = username.includes("***")
+			if (skip) {
+				asterisksUsers.set(username, true)
+				continue
+			}
+			if (containsCohost(username) === true) {
+				cohosts.set(username, true)
+				continue
+			}
 
-	// grab lastCohost randomly from list
-	let index = 0
-	let key = Math.floor(Math.random() * cohosts.size);
-	for (let username of cohosts.keys()) {
-		if (index === key) {
-			console.log(logPrefix + "last cohost: " + username)
-			lastCohost = username
-		} else {
-			y.push(username)
+			// Add an attribute for our purposes
+			assignableUsers.push(username)
 		}
-		index++
-	}
 
-	let shuffled = shuffle(y);
-	if (lastCohost !== "") {
-		shuffled.push(lastCohost)
-	}
-	return shuffled;
+		// grab lastCohost randomly from list
+		let index = 0
+		let key = Math.floor(Math.random() * cohosts.size);
+		for (let username of cohosts.keys()) {
+			if (index === key) {
+				console.log(logPrefix + "last cohost: " + username)
+				lastCohost = username
+				continue
+			}
+			assignableUsers.push(username)
+			index++
+		}
+
+		assignableUsers = shuffle(assignableUsers);
+		if (lastCohost !== "") {
+			assignableUsers.push(lastCohost)
+		}
+	}, 0);
+	setTimeout(() => {
+		assignButtons[0].click();
+	}, 0);
 }
 
 function containsCohost(username) {
@@ -1368,20 +1419,24 @@ function getAllAssignButtons() {
 /**
  * Check for page load and then continue.
  */
-let ih = '';
-if (document.readyState === "complete"
-	|| document.readyState === "interactive") {
-	ih = document.body.innerHTML;
-	load();
-} else {
-	document.onreadystatechange = function () {
-		if (document.readyState === "complete"
-			|| document.readyState === "interactive") {
-			ih = document.body.innerHTML;
-			load();
+
+(function main() {
+	let ih = '';
+	if (document.readyState === "complete"
+		|| document.readyState === "interactive") {
+		ih = document.body.innerHTML;
+
+		load();
+	} else {
+		document.onreadystatechange = function () {
+			if (document.readyState === "complete"
+				|| document.readyState === "interactive") {
+				ih = document.body.innerHTML;
+				load();
+			}
 		}
 	}
-}
+})()
 
 /**
  * GM functions
